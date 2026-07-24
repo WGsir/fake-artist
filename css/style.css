@@ -1,0 +1,634 @@
+/* ============================================================
+   Fake Artist - style.css
+   Windows XP mspaint.exe Luna 主題風格
+   ============================================================ */
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --xp-bg:        #ECE9D8;
+    --xp-btn-face:  #D4D0C8;
+    --xp-btn-highlight: #FFFFFF;
+    --xp-btn-shadow:    #808080;
+    --xp-btn-dark:      #404040;
+    --xp-border:    #ACA899;
+    --xp-title-top: #0054E3;
+    --xp-title-mid: #317CE0;
+    --xp-title-bot: #00309C;
+    --xp-menu-hover: #316AC5;
+    --xp-canvas-bg: #FFFFFF;
+    --xp-dlg-border: #00309C;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: "Microsoft Sans Serif", "Tahoma", "Segoe UI", sans-serif;
+    font-size: 11px;
+    background: var(--xp-bg);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ---- XP App Window ---- */
+#app-window {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-width: 1100px;
+    max-height: 800px;
+    margin: 0 auto;
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    background: var(--xp-bg);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+}
+
+/* ---- Title Bar (Luna Blue gradient) ---- */
+#title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    padding: 0 4px 0 8px;
+    background: linear-gradient(180deg,
+        #0054E3 0%,
+        #4D8BF0 6%,
+        #0054E3 15%,
+        #317CE0 40%,
+        #1B62D7 56%,
+        #00309C 100%
+    );
+    color: #FFFFFF;
+    font-weight: bold;
+    font-size: 12px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    flex-shrink: 0;
+}
+
+#title-bar .title-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="%23FFFFFF"/><circle cx="8" cy="8" r="3" fill="%230054E3"/></svg>') center/contain no-repeat;
+}
+
+#title-bar .title-text {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+#title-bar .title-buttons {
+    display: flex;
+    gap: 2px;
+}
+
+#title-bar .title-btn {
+    width: 21px;
+    height: 21px;
+    border: 1px solid #FFFFFF;
+    border-radius: 0;
+    background: linear-gradient(180deg,
+        #A0C8F0 0%,
+        #70A8E0 40%,
+        #4888D0 60%,
+        #3070B8 100%
+    );
+    color: #FFFFFF;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+}
+
+#title-bar .title-btn:hover {
+    background: linear-gradient(180deg,
+        #C0D8F8 0%,
+        #90C0F0 40%,
+        #68A8E0 60%,
+        #5090C8 100%
+    );
+}
+
+/* ---- Menu Bar ---- */
+#menu-bar {
+    display: flex;
+    height: 22px;
+    background: var(--xp-bg);
+    border-bottom: 1px solid var(--xp-border);
+    flex-shrink: 0;
+    padding: 0 2px;
+}
+
+.menu-item {
+    position: relative;
+    padding: 2px 8px;
+    cursor: pointer;
+    color: #000000;
+    white-space: nowrap;
+}
+
+.menu-item:hover {
+    background: var(--xp-menu-hover);
+    color: #FFFFFF;
+}
+
+/* Menu dropdown */
+.menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--xp-bg);
+    border: 1px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    min-width: 180px;
+    z-index: 1000;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.menu-dropdown .menu-drop-item {
+    padding: 4px 24px 4px 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.menu-dropdown .menu-drop-item:hover {
+    background: var(--xp-menu-hover);
+    color: #FFFFFF;
+}
+
+.menu-dropdown .menu-separator {
+    height: 1px;
+    background: var(--xp-border);
+    margin: 2px 0;
+}
+
+.menu-item.active .menu-dropdown {
+    display: block;
+}
+
+/* ---- Main Content Area ---- */
+#main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background: var(--xp-border);
+    border-top: 1px solid var(--xp-btn-highlight);
+}
+
+/* ---- Left Toolbox ---- */
+#toolbox {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 52px;
+    padding: 4px 3px;
+    background: var(--xp-bg);
+    border-right: 1px solid var(--xp-border);
+    flex-shrink: 0;
+}
+
+.tool-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    margin-bottom: 1px;
+    position: relative;
+}
+
+.tool-btn:active,
+.tool-btn.selected {
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    padding: 1px 0 0 1px;
+}
+
+.tool-btn:focus {
+    outline: 1px dotted #000;
+    outline-offset: -4px;
+}
+
+.tool-btn .tool-icon {
+    font-size: 20px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* Tooltip on hover */
+.tool-btn:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 56px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #FFFFE1;
+    border: 1px solid #000000;
+    padding: 2px 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* Brush size indicator area in toolbox */
+#brush-size-box {
+    width: 44px;
+    height: 36px;
+    margin: 4px 0;
+    background: var(--xp-bg);
+    border: 1px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+#brush-size-slider {
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 20px;
+    height: 100%;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+/* ---- Canvas Area ---- */
+#canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--xp-border);
+    padding: 8px;
+    position: relative;
+    overflow: auto;
+}
+
+#canvas-frame {
+    border: 2px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    background: var(--xp-canvas-bg);
+    line-height: 0;
+    flex-shrink: 0;
+}
+
+#drawing-canvas {
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+/* ---- Right Panel (Player list) ---- */
+#right-panel {
+    width: 160px;
+    background: var(--xp-bg);
+    border-left: 1px solid var(--xp-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 4px;
+}
+
+#right-panel .panel-title {
+    font-weight: bold;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--xp-border);
+    margin-bottom: 4px;
+}
+
+#player-list {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 11px;
+}
+
+.player-entry {
+    padding: 3px 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.player-entry.current-turn {
+    background: var(--xp-menu-hover);
+    color: #FFFFFF;
+}
+
+.player-entry .player-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.player-entry .player-dot.drawn {
+    opacity: 0.4;
+}
+
+#turn-indicator {
+    padding: 4px 6px;
+    font-size: 11px;
+    border-top: 1px solid var(--xp-border);
+    margin-top: 4px;
+}
+
+/* ---- Bottom Color Palette Row ---- */
+#color-palette-row {
+    display: flex;
+    align-items: center;
+    background: var(--xp-bg);
+    border-top: 1px solid var(--xp-btn-highlight);
+    border-bottom: 1px solid var(--xp-border);
+    flex-shrink: 0;
+    padding: 4px 6px;
+    gap: 8px;
+}
+
+#color-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    justify-content: flex-start;
+}
+
+.color-cell {
+    width: 18px;
+    height: 18px;
+    border: 1px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    cursor: pointer;
+    margin: 1px;
+}
+
+.color-cell:active,
+.color-cell.selected {
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+}
+
+.color-cell:focus {
+    outline: 1px dotted #000;
+    outline-offset: -3px;
+}
+
+/* Active foreground/background indicator */
+#fg-bg-indicator {
+    display: flex;
+    position: relative;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+#fg-color-box {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #000;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+#bg-color-box {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #000;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    z-index: 1;
+}
+
+/* ---- Status Bar ---- */
+#status-bar {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    background: var(--xp-bg);
+    border-top: 1px solid var(--xp-btn-highlight);
+    font-size: 11px;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+#status-bar .status-separator {
+    width: 1px;
+    height: 16px;
+    background: var(--xp-border);
+}
+
+/* ---- Overlay & Modal (XP MessageBox style) ---- */
+#overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+#overlay.active {
+    display: flex;
+}
+
+.xp-dialog {
+    background: var(--xp-bg);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.xp-dialog .dlg-title {
+    background: linear-gradient(180deg,
+        #0054E3 0%,
+        #4D8BF0 6%,
+        #0054E3 15%,
+        #317CE0 40%,
+        #1B62D7 56%,
+        #00309C 100%
+    );
+    color: #FFFFFF;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 3px 6px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.xp-dialog .dlg-title .dlg-close {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #FFFFFF;
+    background: linear-gradient(180deg, #A0C8F0, #3070B8);
+    color: #FFFFFF;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.xp-dialog .dlg-body {
+    padding: 12px 16px;
+    font-size: 11px;
+}
+
+.xp-dialog .dlg-buttons {
+    padding: 8px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    border-top: 1px solid var(--xp-border);
+}
+
+/* ---- XP 3D Buttons ---- */
+.xp-btn {
+    padding: 4px 16px;
+    min-width: 75px;
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 0;
+    outline: none;
+}
+
+.xp-btn:active {
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    padding: 5px 15px 3px 17px;
+}
+
+.xp-btn:focus {
+    outline: 1px dotted #000;
+    outline-offset: -4px;
+}
+
+.xp-btn:disabled {
+    color: #808080;
+    cursor: default;
+}
+
+.xp-btn.btn-primary {
+    border-color: #000080 #000080 #000080 #000080;
+    font-weight: bold;
+}
+
+/* ---- XP Input Field ---- */
+.xp-input {
+    padding: 3px 4px;
+    border: 2px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    font-family: inherit;
+    font-size: 11px;
+    background: #FFFFFF;
+    outline: none;
+    border-radius: 0;
+}
+
+.xp-input:focus {
+    outline: 1px dotted #000;
+    outline-offset: -2px;
+}
+
+/* ---- XP Label ---- */
+.xp-label {
+    font-size: 11px;
+    color: #000000;
+}
+
+/* ---- Vote Buttons (player voting) ---- */
+.vote-player-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    margin: 3px 0;
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    cursor: pointer;
+    font-size: 11px;
+    text-align: left;
+    border-radius: 0;
+}
+
+.vote-player-btn:hover {
+    background: var(--xp-menu-hover);
+    color: #FFFFFF;
+}
+
+.vote-player-btn:active {
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+}
+
+/* ---- Scrollbar (XP style) ---- */
+::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--xp-bg);
+    border: 1px solid var(--xp-border);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+}
+
+::-webkit-scrollbar-button {
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    display: block;
+    height: 16px;
+    width: 16px;
+}
+
+/* ---- Responsive (small screens) ---- */
+@media (max-width: 800px) {
+    #right-panel {
+        width: 120px;
+    }
+    #toolbox {
+        width: 42px;
+    }
+    .tool-btn {
+        width: 36px;
+        height: 36px;
+    }
+}

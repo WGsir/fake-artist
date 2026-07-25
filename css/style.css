@@ -192,54 +192,75 @@ html, body {
     border-top: 1px solid var(--xp-btn-highlight);
 }
 
-/* ---- Left Toolbox ---- */
+/* ---- Left Toolbox (Windows XP mspaint) ---- */
 #toolbox {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    width: 52px;
-    padding: 4px 3px;
+    gap: 4px;
+    width: 60px;
+    padding: 4px;
     background: var(--xp-bg);
     border-right: 1px solid var(--xp-border);
     flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* Tiny "Tools" caption like XP's indented label-style header */
+#toolbox-header {
+    display: none; /* mspaint uses a plain group; kept for potential future use */
+}
+
+/* 2-column grid of square tool buttons */
+#tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    background: var(--xp-btn-face);
 }
 
 .tool-btn {
-    width: 44px;
-    height: 44px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     background: var(--xp-btn-face);
-    border: 2px solid;
+    border: 1px solid;
     border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
-    margin-bottom: 1px;
+    padding: 0;
     position: relative;
+    box-sizing: border-box;
 }
 
 .tool-btn:active,
 .tool-btn.selected {
-    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    border-color: var(--xp-btn-dark) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-dark);
+    background: #C8C2BC;
+    /* nudge contents slightly to mimic pressed look */
     padding: 1px 0 0 1px;
 }
 
 .tool-btn:focus {
-    outline: 1px dotted #000;
-    outline-offset: -4px;
+    outline: none;
 }
 
-.tool-btn .tool-icon {
-    font-size: 20px;
-    line-height: 1;
+/* SVG icon container */
+.tool-svg {
+    width: 18px;
+    height: 18px;
     pointer-events: none;
+    display: block;
 }
 
 /* Tooltip on hover */
 .tool-btn:hover::after {
     content: attr(data-tooltip);
     position: absolute;
-    left: 56px;
+    left: 32px;
     top: 50%;
     transform: translateY(-50%);
     background: #FFFFE1;
@@ -251,27 +272,88 @@ html, body {
     pointer-events: none;
 }
 
-/* Brush size indicator area in toolbox */
+/* Brush size group (XP "Size" label + preview + vertical slider) */
+#brush-size-label {
+    margin: 2px 2px 0 2px;
+    font-size: 11px;
+    color: #000000;
+}
+
 #brush-size-box {
-    width: 44px;
-    height: 36px;
-    margin: 4px 0;
-    background: var(--xp-bg);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    background: var(--xp-btn-face);
     border: 1px solid;
     border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    box-sizing: border-box;
+}
+
+/* Solid round preview whose diameter follows the brush size */
+#brush-size-preview {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    background: var(--xp-btn-face);
+    border: 1px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
+#brush-size-preview::after {
+    content: "";
+    display: block;
+    background: #000000;
+    border-radius: 50%;
+    width: var(--preview-size, 3px);
+    height: var(--preview-size, 3px);
+}
+
+/* The vertical slider styling overrides native track/thumb XP-ish look */
 #brush-size-slider {
     writing-mode: vertical-lr;
     direction: rtl;
-    width: 20px;
-    height: 100%;
-    margin: 0 auto;
+    width: 14px;
+    height: 60px;
     cursor: pointer;
+    background: transparent;
+}
+
+#brush-size-slider::-webkit-slider-runnable-track {
+    width: 8px;
+    height: 100%;
+    background: #FFFFFF;
+    border: 1px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    box-sizing: border-box;
+}
+
+#brush-size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 10px;
+    margin-left: -4px;
+    background: var(--xp-btn-face);
+    border: 1px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+}
+
+#brush-size-slider::-moz-range-track {
+    width: 8px;
+    background: #FFFFFF;
+    border: 1px solid #808080;
+}
+
+#brush-size-slider::-moz-range-thumb {
+    width: 14px;
+    height: 10px;
+    background: var(--xp-btn-face);
+    border: 1px solid #808080;
+    border-radius: 0;
 }
 
 /* ---- Canvas Area ---- */
@@ -625,10 +707,664 @@ html, body {
         width: 120px;
     }
     #toolbox {
-        width: 42px;
+        width: 56px;
     }
     .tool-btn {
-        width: 36px;
-        height: 36px;
+        width: 22px;
+        height: 22px;
     }
+    .tool-svg {
+        width: 15px;
+        height: 15px;
+    }
+    #brush-size-slider {
+        height: 48px;
+    }
+}
+
+/* ---- Room dialogs (XP styled entry / create / join / share) ---- */
+
+/* Entry-choice big buttons */
+.room-choice-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 12px;
+    margin: 6px 0;
+    background: var(--xp-btn-face);
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    text-align: left;
+    border-radius: 0;
+}
+
+.room-choice-btn:hover {
+    background: var(--xp-menu-hover);
+}
+
+.room-choice-btn:hover .room-choice-title,
+.room-choice-btn:hover .room-choice-desc,
+.room-choice-btn:hover .room-choice-icon {
+    color: #FFFFFF;
+}
+
+.room-choice-icon {
+    font-size: 22px;
+    line-height: 1;
+    color: #000000;
+}
+
+.room-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.room-choice-title {
+    font-weight: bold;
+    font-size: 13px;
+    color: #000000;
+}
+
+.room-choice-desc {
+    font-size: 10px;
+    color: #808080;
+}
+
+/* Big prominent room code box */
+.room-code-box {
+    border: 2px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    background: #FFFFFF;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.room-code-label {
+    font-size: 10px;
+    color: #808080;
+    margin-bottom: 4px;
+}
+
+.room-code-value {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 30px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    color: #000080;
+    text-shadow: 1px 1px 0 #C0C0C0;
+}
+
+/* Lobby players list inside room-share dialog */
+.room-lobby-players {
+    margin-top: 10px;
+    border: 2px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    background: #FFFFFF;
+}
+
+.room-lobby-header {
+    font-size: 11px;
+    font-weight: bold;
+    color: #FFFFFF;
+    background: linear-gradient(180deg, #0054E3 0%, #317CE0 50%, #00309C 100%);
+    padding: 3px 6px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+#room-lobby-list {
+    padding: 6px 8px;
+    min-height: 40px;
+    max-height: 130px;
+    overflow-y: auto;
+}
+
+.room-lobby-entry {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 11px;
+}
+
+.room-lobby-entry .player-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid #404040;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.room-lobby-host-tag {
+    margin-left: auto;
+    font-size: 9px;
+    color: #FFFFFF;
+    background: #008000;
+    padding: 1px 5px;
+    border: 1px solid #004000;
+}
+
+/* Connecting spinner */
+.room-spinner {
+    width: 28px;
+    height: 28px;
+    margin: 0 auto 10px;
+    border: 3px solid var(--xp-btn-face);
+    border-top: 3px solid #0054E3;
+    border-radius: 50%;
+    animation: room-spin 0.8s linear infinite;
+}
+
+@keyframes room-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Constrain new room dialogs a bit wider */
+#dlg-room-entry,
+#dlg-room-create,
+#dlg-room-join,
+#dlg-room-share,
+#dlg-room-connecting {
+    min-width: 320px;
+}
+
+#dlg-room-share {
+    min-width: 340px;
+}
+
+/* ============================================================
+   Full-page game table — Gartic-inspired composition, XP Paint skin
+   ============================================================ */
+
+:root {
+    --game-sky: #73b8ec;
+    --game-sky-deep: #4c95da;
+    --panel-blue: #dbeeff;
+    --panel-line: #5d90b8;
+    --ink-blue: #063a83;
+}
+
+html, body {
+    min-width: 960px;
+    overflow: auto;
+    background:
+        radial-gradient(circle at 18% 12%, rgba(255,255,255,.65) 0 2px, transparent 2.5px),
+        radial-gradient(circle at 76% 78%, rgba(255,255,255,.34) 0 2px, transparent 2.5px),
+        linear-gradient(180deg, #b9e1ff 0, var(--game-sky) 46%, var(--game-sky-deep) 100%);
+    background-size: 31px 31px, 47px 47px, auto;
+    color: #15253c;
+}
+
+#app-window {
+    width: 100%;
+    min-width: 960px;
+    max-width: none;
+    min-height: 100vh;
+    height: auto;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding-bottom: 14px;
+}
+
+#title-bar {
+    height: 31px;
+    padding: 0 12px;
+    border-bottom: 1px solid #00296c;
+    box-shadow: inset 0 -1px rgba(255,255,255,.25);
+}
+
+#menu-bar {
+    height: 28px;
+    padding-left: 18px;
+    background: #ece9d8;
+    border-bottom: 1px solid #8e8a7e;
+    box-shadow: 0 1px 0 rgba(255,255,255,.85);
+}
+
+.menu-item {
+    padding: 5px 10px 4px;
+}
+
+#game-hud {
+    width: min(1260px, calc(100% - 32px));
+    margin: 12px auto 10px;
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) minmax(320px, 1.35fr) minmax(175px, .7fr);
+    gap: 10px;
+    align-items: stretch;
+}
+
+.brand-lockup,
+.prompt-card,
+.hud-room-card {
+    min-height: 55px;
+    border: 2px solid;
+    border-color: #fff #5f87ae #5f87ae #fff;
+    background: linear-gradient(#f8fdff, #d6ecff);
+    box-shadow: 1px 1px 0 #356487, inset 0 0 0 1px #9bc4e5;
+}
+
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    padding: 7px 12px;
+    gap: 8px;
+}
+
+.brand-mark {
+    position: relative;
+    width: 33px;
+    height: 27px;
+    flex: 0 0 auto;
+    border: 2px solid #0d4c9e;
+    border-radius: 2px 6px 4px 5px;
+    background: #fff;
+    box-shadow: 2px 2px 0 #7ba9d0;
+    transform: rotate(-4deg);
+}
+
+.brand-mark::before,
+.brand-mark::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+}
+
+.brand-mark::before {
+    width: 7px;
+    height: 7px;
+    left: 6px;
+    top: 6px;
+    background: #f33838;
+    box-shadow: 10px 5px 0 #ffd234, 4px 12px 0 #28a856;
+}
+
+.brand-mark::after {
+    width: 19px;
+    height: 3px;
+    left: 6px;
+    bottom: 3px;
+    background: #1f65bb;
+    border-radius: 1px;
+}
+
+.brand-name {
+    color: #06438e;
+    font-family: Tahoma, sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -.6px;
+    text-shadow: 1px 1px #fff;
+}
+
+.brand-tagline {
+    align-self: flex-end;
+    margin: 0 0 5px 1px;
+    color: #4b6580;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.prompt-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 12px;
+}
+
+.prompt-label,
+.hud-room-label {
+    color: #3f6285;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+#prompt-display {
+    min-width: 0;
+    overflow: hidden;
+    color: #0b3470;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#round-display {
+    padding: 3px 6px;
+    color: #07501d;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid #75a36d;
+    background: #dff4d8;
+}
+
+.hud-room-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 7px 12px;
+}
+
+#hud-room-status {
+    overflow: hidden;
+    color: #163a67;
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#main-content {
+    width: min(1260px, calc(100% - 32px));
+    min-height: 650px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr) 232px;
+    gap: 10px;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+}
+
+#toolbox,
+#right-panel {
+    border: 2px solid;
+    border-color: #fff #4c7596 #4c7596 #fff;
+    box-shadow: 1px 1px 0 #2c5677, inset 0 0 0 1px #a1c5de;
+}
+
+#toolbox {
+    width: auto;
+    padding: 6px;
+    gap: 7px;
+    background: linear-gradient(90deg, #eaf7ff, #c5e3f7);
+    border-right: 2px solid #4c7596;
+}
+
+#toolbox-header {
+    display: block;
+    padding: 3px 0 4px;
+    color: #15497c;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #8fb8d5;
+}
+
+#tool-grid {
+    padding: 3px;
+    background: #d4d0c8;
+}
+
+.tool-btn {
+    width: 27px;
+    height: 27px;
+}
+
+#brush-size-label {
+    margin: 0;
+    color: #15497c;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+}
+
+#brush-size-box {
+    display: grid;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+}
+
+#brush-size-preview {
+    width: 38px;
+    height: 25px;
+}
+
+#brush-size-slider {
+    width: 38px;
+    height: 48px;
+    writing-mode: horizontal-tb;
+    direction: ltr;
+}
+
+#brush-size-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+}
+
+#brush-size-slider::-webkit-slider-thumb {
+    width: 10px;
+    height: 14px;
+    margin-top: -4px;
+}
+
+#canvas-area {
+    min-width: 0;
+    padding: 0;
+    overflow: auto;
+    align-items: flex-start;
+    background: transparent;
+}
+
+.canvas-stage {
+    width: max-content;
+    min-width: 100%;
+    margin: 0 auto;
+    padding: 8px;
+    background: #dceef9;
+    border: 2px solid;
+    border-color: #fff #4c7596 #4c7596 #fff;
+    box-shadow: 1px 1px 0 #2c5677, inset 0 0 0 1px #a1c5de;
+}
+
+.canvas-stage-title {
+    display: flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 3px 7px 5px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 1px 1px #164c83;
+    background: linear-gradient(#63a9e8, #2470bd 62%, #15549e);
+    border: 1px solid #205c9c;
+}
+
+.stage-dot {
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border: 1px solid #195825;
+    border-radius: 50%;
+    background: #55db5e;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.45);
+}
+
+.stage-hint {
+    margin-left: auto;
+    color: #d9efff;
+    font-size: 10px;
+    font-weight: normal;
+}
+
+#canvas-frame {
+    margin: 7px 0;
+    border-width: 2px;
+    box-shadow: 1px 1px 0 rgba(0,0,0,.25);
+}
+
+#color-palette-row {
+    min-height: 48px;
+    padding: 5px 7px;
+    gap: 7px;
+    border: 2px solid;
+    border-color: #7e7a71 #fff #fff #7e7a71;
+    background: #d4d0c8;
+}
+
+.palette-label {
+    margin-right: 1px;
+    color: #3d3d3d;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+#color-palette {
+    max-width: 540px;
+}
+
+.color-cell {
+    width: 18px;
+    height: 18px;
+}
+
+#right-panel {
+    width: auto;
+    padding: 6px;
+    gap: 9px;
+    background: linear-gradient(90deg, #d7efff, #bedcf2);
+    border-left: 2px solid #fff;
+}
+
+.sidebar-window {
+    display: flex;
+    flex: 1;
+    min-height: 260px;
+    flex-direction: column;
+    padding: 4px;
+    background: #ece9d8;
+    border: 2px solid;
+    border-color: #7b776d #fff #fff #7b776d;
+}
+
+#right-panel .panel-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 26px;
+    margin: 0 0 4px;
+    padding: 4px 7px;
+    color: #fff;
+    font-size: 11px;
+    text-shadow: 1px 1px #164c83;
+    background: linear-gradient(#62a9e8, #226db7 62%, #155098);
+    border: 1px solid #155098;
+}
+
+#sidebar-player-count {
+    min-width: 19px;
+    padding: 1px 5px;
+    color: #174060;
+    text-align: center;
+    text-shadow: none;
+    background: #dff1ff;
+    border: 1px solid #8ebce1;
+}
+
+#player-list {
+    padding: 2px;
+    background: #fff;
+    border: 1px solid;
+    border-color: #7b776d #fff #fff #7b776d;
+}
+
+.player-entry {
+    min-height: 29px;
+    padding: 6px 6px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.player-entry.current-turn {
+    color: #103a66;
+    font-weight: bold;
+    background: #d5ecff;
+    outline: 1px solid #76aae0;
+    outline-offset: -1px;
+}
+
+#turn-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    padding: 6px 7px;
+    color: #123e6c;
+    background: #e2f5d8;
+    border: 1px solid #8bb77b;
+}
+
+.turn-label {
+    font-size: 10px;
+    color: #4e7247;
+}
+
+#turn-indicator strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#btn-done-drawing {
+    min-height: 29px;
+    color: #082f63;
+    background: linear-gradient(#f9ffff, #bfe6ff);
+    border-color: #fff #397da9 #397da9 #fff;
+}
+
+.sidebar-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px;
+    color: #31546d;
+    line-height: 1.45;
+    background: #f7fcff;
+    border: 1px solid #91bcda;
+}
+
+.sidebar-tip p { font-size: 10px; }
+
+.tip-icon {
+    display: grid;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    place-items: center;
+    color: #fff;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    font-weight: bold;
+    background: #2574bd;
+    border: 1px solid #0d4d8f;
+    border-radius: 50%;
+}
+
+#status-bar {
+    width: min(1260px, calc(100% - 32px));
+    height: 24px;
+    margin: 10px auto 0;
+    padding: 0 8px;
+    border: 2px solid;
+    border-color: #fff #507795 #507795 #fff;
+    background: #d9eefa;
+    box-shadow: 1px 1px 0 #2c5677;
+}
+
+@media (max-width: 1180px) {
+    #main-content, #game-hud, #status-bar { width: calc(100% - 20px); }
+    #main-content { grid-template-columns: 68px minmax(0, 1fr) 205px; gap: 7px; }
+    #toolbox { padding: 4px; }
+    .tool-btn { width: 26px; height: 26px; }
+    .brand-tagline { display: none; }
 }

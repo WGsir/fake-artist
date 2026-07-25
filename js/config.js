@@ -48,6 +48,15 @@ const CONFIG = {
         DRAW_ROUNDS: 2,          // 每人畫兩輪（更接近桌遊原版）
     },
 
+    // ---- Room Code (auto-generated pair codes) ----
+    ROOM_CODE: {
+        LENGTH: 6,
+        // 排除易混淆字元 (0/O, 1/I/L) ，只使用明確的英數字
+        CHARSET: "ABCDEFGHJKMNPQRSTUVWXYZ23456789",
+        COLLISION_RETRIES: 5,
+        PREFIX: "fake-artist-",  // peerjs id 前綴以避免與其他人碰撞
+    },
+
     // ---- XP mspaint 28 色色盤 ----
     // 參考 Windows XP 小畫家預設顏色矩陣 (4 rows × 7 cols = 28)
     COLOR_PALETTE: [
@@ -77,3 +86,4 @@ Object.freeze(CONFIG.SYNC);
 Object.freeze(CONFIG.PEER);
 Object.freeze(CONFIG.GAME);
 Object.freeze(CONFIG.COLOR_PALETTE);
+Object.freeze(CONFIG.ROOM_CODE);

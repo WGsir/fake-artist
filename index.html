@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎨 Fake Artist - 偽藝術家</title>
+    <title>Fake Artist - 偽藝術家</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- ======== App Window ======== -->
+    <!-- ======== Game shell ======== -->
     <div id="app-window">
 
         <!-- Title Bar (Luna Blue) -->
@@ -29,62 +29,112 @@
             <div class="menu-item" id="menu-file">
                 檔案(<u>F</u>)
                 <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-new-room">🆕 開新房間</div>
-                    <div class="menu-drop-item" id="menu-join-room">🔗 加入房間</div>
+                    <div class="menu-drop-item" id="menu-new-room">開新房間</div>
+                    <div class="menu-drop-item" id="menu-join-room">加入房間</div>
                     <div class="menu-separator"></div>
-                    <div class="menu-drop-item" id="menu-exit">🚪 離開房間</div>
+                    <div class="menu-drop-item" id="menu-exit">離開房間</div>
                 </div>
             </div>
             <div class="menu-item" id="menu-edit">
                 編輯(<u>E</u>)
                 <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-undo">↩️ 復原</div>
-                    <div class="menu-drop-item" id="menu-clear">🗑️ 清除畫布</div>
+                    <div class="menu-drop-item" id="menu-undo">復原</div>
+                    <div class="menu-drop-item" id="menu-clear">清除畫布</div>
                 </div>
             </div>
             <div class="menu-item" id="menu-view">
                 檢視(<u>V</u>)
                 <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-toolbox-toggle">📐 工具箱</div>
-                    <div class="menu-drop-item" id="menu-palette-toggle">🎨 色盤</div>
-                    <div class="menu-drop-item" id="menu-status-toggle">📊 狀態列</div>
+                    <div class="menu-drop-item" id="menu-toolbox-toggle">工具箱</div>
+                    <div class="menu-drop-item" id="menu-palette-toggle">色盤</div>
+                    <div class="menu-drop-item" id="menu-status-toggle">狀態列</div>
                 </div>
             </div>
             <div class="menu-item" id="menu-help">
                 說明(<u>H</u>)
                 <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-rules">📖 遊戲規則</div>
-                    <div class="menu-drop-item" id="menu-about">ℹ️ 關於</div>
+                    <div class="menu-drop-item" id="menu-rules">遊戲規則</div>
+                    <div class="menu-drop-item" id="menu-about">關於</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Game HUD: Gartic-style game information, rendered in an XP shell -->
+        <div id="game-hud">
+            <div class="brand-lockup" aria-label="Fake Artist">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-name">Fake Artist</span>
+                <span class="brand-tagline">偽藝術家紐約行</span>
+            </div>
+            <div class="prompt-card">
+                <span class="prompt-label">本局提示</span>
+                <strong id="prompt-display">等待房主開始遊戲</strong>
+                <span id="round-display">準備中</span>
+            </div>
+            <div class="hud-room-card">
+                <span class="hud-room-label">房間狀態</span>
+                <span id="hud-room-status">未連線</span>
             </div>
         </div>
 
         <!-- Main Content: Toolbox | Canvas | Right Panel -->
         <div id="main-content">
 
-            <!-- Left Toolbox -->
+            <!-- Left Toolbox (Windows XP mspaint style) -->
             <div id="toolbox">
-                <button class="tool-btn selected" data-tool="pen" data-tooltip="鉛筆">
-                    <span class="tool-icon">✏️</span>
-                </button>
-                <button class="tool-btn" data-tool="brush" data-tooltip="筆刷">
-                    <span class="tool-icon">🖌️</span>
-                </button>
-                <button class="tool-btn" data-tool="eraser" data-tooltip="橡皮擦">
-                    <span class="tool-icon">◼</span>
-                </button>
-                <button class="tool-btn" data-tool="fill" data-tooltip="填色">
-                    <span class="tool-icon">🪣</span>
-                </button>
-                <button class="tool-btn" data-tool="picker" data-tooltip="選色器">
-                    <span class="tool-icon">💉</span>
-                </button>
-                <button class="tool-btn" id="btn-undo" data-tooltip="復原">
-                    <span class="tool-icon">↩️</span>
-                </button>
+                <div id="toolbox-header">工具</div>
 
-                <!-- Brush size box -->
+                <div id="tool-grid">
+                    <!-- Pencil -->
+                    <button class="tool-btn selected" data-tool="pen" data-tooltip="鉛筆" title="鉛筆">
+                        <svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 21 L9 19 L20 8 L16 4 L5 15 Z" fill="none" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/>
+                            <path d="M16 4 L20 8 L18 10 L14 6 Z" fill="#FFD83B" stroke="#000" stroke-width="1.2"/>
+                            <path d="M5 15 L9 19 L3 21 Z" fill="#7C5A3A" stroke="#000" stroke-width="1.2"/>
+                        </svg>
+                    </button>
+
+                    <!-- Eraser -->
+                    <button class="tool-btn" data-tool="eraser" data-tooltip="橡皮擦" title="橡皮擦">
+                        <svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 14 L9 8 L17 16 L20 13 L21 14 L11 24 L3 24 Z" fill="#F4B8C0" stroke="#000" stroke-width="1.2" stroke-linejoin="round" transform="translate(0 -4)"/>
+                            <path d="M9 4 L15 10 L10 15 L5 10 Z" fill="#F4B8C0" stroke="#000" stroke-width="1.3" transform="rotate(45 10 9)"/>
+                            <path d="M9 8 L4 13 L10 19 L15 14 Z" fill="#F0E68C" stroke="#000" stroke-width="1.3" transform="rotate(45 10 14)"/>
+                        </svg>
+                    </button>
+
+                    <!-- Fill bucket -->
+                    <button class="tool-btn" data-tool="fill" data-tooltip="填色" title="填色">
+                        <svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 4 L6 14 Q6 18 11 18 Q16 18 16 14 L16 4 Z" fill="#9CC8E8" stroke="#000" stroke-width="1.3"/>
+                            <path d="M6 4 L6 2 L16 2 L16 4 Z" fill="#5C8FB3" stroke="#000" stroke-width="1.3"/>
+                            <path d="M16 12 Q21 12 21 16 Q21 19 18 19 Q16 19 16 17 Q16 16 17.5 16 Q18.5 16 18.5 15 Q18.5 13.5 16 12.6 Z" fill="#9CC8E8" stroke="#000" stroke-width="1.2"/>
+                        </svg>
+                    </button>
+
+                    <!-- Color picker (eyedropper) -->
+                    <button class="tool-btn" data-tool="picker" data-tooltip="選色器" title="選色器">
+                        <svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14 3 L21 10 L19 12 L17 10 L8 19 L4 20 L5 16 L14 7 Z" fill="#E0E8F0" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/>
+                            <path d="M17 5 L19 7 L8 18 L6 16 Z" fill="#D8D0C0" stroke="#000" stroke-width="1.2"/>
+                            <path d="M14 3 L17 6 L19 4 L16 1 Z" fill="#FF6B6B" stroke="#000" stroke-width="1.2"/>
+                            <circle cx="5" cy="19" r="1.4" fill="#000"/>
+                        </svg>
+                    </button>
+
+                    <!-- Undo (curly arrow) -->
+                    <button class="tool-btn" id="btn-undo" data-tooltip="復原" title="復原">
+                        <svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 9 Q4 4 12 4 Q19 4 19 11" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
+                            <path d="M9 4 L4 9 L10 11" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Brush size preview + slider (XP mspaint "Size" group) -->
+                <div id="brush-size-label">尺寸</div>
                 <div id="brush-size-box">
+                    <div id="brush-size-preview"></div>
                     <input type="range" id="brush-size-slider" orient="vertical"
                            min="1" max="20" value="3" step="1">
                 </div>
@@ -92,36 +142,52 @@
 
             <!-- Canvas Area -->
             <div id="canvas-area">
-                <div id="canvas-frame">
-                    <canvas id="drawing-canvas"></canvas>
+                <div class="canvas-stage">
+                    <div class="canvas-stage-title">
+                        <span class="stage-dot"></span>
+                        <span>共同畫布</span>
+                        <span class="stage-hint">輪流畫一筆，找出偽藝術家</span>
+                    </div>
+                    <div id="canvas-frame">
+                        <canvas id="drawing-canvas"></canvas>
+                    </div>
+                    <div id="color-palette-row">
+                        <div class="palette-label">色彩</div>
+                        <div id="fg-bg-indicator">
+                            <div id="fg-color-box"></div>
+                            <div id="bg-color-box"></div>
+                        </div>
+                        <div id="color-palette">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Right Panel (Player list) -->
             <div id="right-panel">
-                <div class="panel-title">👥 玩家</div>
-                <div id="player-list">
-                    <div class="player-entry" style="color: #808080;">
-                        等待玩家加入...
+                <div class="sidebar-window">
+                    <div class="panel-title">
+                        <span>玩家</span>
+                        <span id="sidebar-player-count">0</span>
                     </div>
+                    <div id="player-list">
+                        <div class="player-entry" style="color: #808080;">
+                            等待玩家加入...
+                        </div>
+                    </div>
+                    <div id="turn-indicator" style="display: none;">
+                        <span class="turn-label">目前輪到</span>
+                        <strong id="turn-name">-</strong>
+                    </div>
+                    <button class="xp-btn" id="btn-done-drawing" style="display:none; width:100%; margin-top:8px;">
+                        我畫完了
+                    </button>
                 </div>
-                <div id="turn-indicator" style="display: none;">
-                    🎨 目前輪到: <span id="turn-name">-</span>
+                <div class="sidebar-tip">
+                    <span class="tip-icon">i</span>
+                    <p>真藝術家知道題目；偽藝術家只有類別。別讓你的筆跡洩漏答案！</p>
                 </div>
-                <button class="xp-btn" id="btn-done-drawing" style="display:none; width:100%; margin-top:4px;">
-                    ✅ 我畫完了
-                </button>
-            </div>
-        </div>
-
-        <!-- Bottom Color Palette Row -->
-        <div id="color-palette-row">
-            <div id="color-palette">
-                <!-- Generated by JS -->
-            </div>
-            <div id="fg-bg-indicator">
-                <div id="fg-color-box"></div>
-                <div id="bg-color-box"></div>
             </div>
         </div>
 
@@ -140,44 +206,110 @@
 
     <!-- ======== Overlay (Modal Dialogs) ======== -->
     <div id="overlay">
-        <!-- Room Dialog (create/join) -->
-        <div class="xp-dialog" id="dlg-room" style="display:none;">
+        <!-- Room: Entry Choice -->
+        <div class="xp-dialog" id="dlg-room-entry" style="display:none;">
             <div class="dlg-title">
-                <span id="dlg-room-title">🎨 開新房間</span>
+                <span>Fake Artist</span>
                 <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body">
-                <div id="room-create-form">
-                    <label class="xp-label">房間名稱（分享給朋友）：</label><br>
-                    <input type="text" class="xp-input" id="input-room-id"
-                           placeholder="例如: my-game-room" style="width:100%; margin:4px 0;">
-                    <br><br>
-                    <label class="xp-label">你的名稱：</label><br>
-                    <input type="text" class="xp-input" id="input-host-name"
-                           placeholder="例如: Alice" style="width:100%; margin:4px 0;">
+                <p class="xp-label" style="margin-bottom:10px;">你想做什麼？</p>
+                <button class="room-choice-btn room-choice-host" id="btn-choice-create">
+                    <span class="room-choice-icon">[H]</span>
+                    <span class="room-choice-text">
+                        <span class="room-choice-title">開新房間</span>
+                        <span class="room-choice-desc">自動產生房間代碼，等朋友加入</span>
+                    </span>
+                </button>
+                <button class="room-choice-btn room-choice-join" id="btn-choice-join">
+                    <span class="room-choice-icon">[J]</span>
+                    <span class="room-choice-text">
+                        <span class="room-choice-title">加入房間</span>
+                        <span class="room-choice-desc">輸入朋友給你的 6 位房間代碼</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Room: Create (host) -->
+        <div class="xp-dialog" id="dlg-room-create" style="display:none;">
+            <div class="dlg-title">
+                <span>開新房間</span>
+                <button class="dlg-close" onclick="UI.backToEntry()">×</button>
+            </div>
+            <div class="dlg-body">
+                <label class="xp-label">你的名稱：</label><br>
+                <input type="text" class="xp-input" id="input-host-name"
+                       placeholder="例如: Alice" maxlength="12"
+                       style="width:100%; margin:4px 0 12px 0;">
+                <p class="xp-label" style="color:#808080; font-size:10px;">
+                    房間代碼將在建立時自動產生。
+                </p>
+            </div>
+            <div class="dlg-buttons">
+                <button class="xp-btn" onclick="UI.backToEntry()">上一步</button>
+                <button class="xp-btn btn-primary" id="btn-room-create-confirm">建立房間</button>
+            </div>
+        </div>
+
+        <!-- Room: Join (client) -->
+        <div class="xp-dialog" id="dlg-room-join" style="display:none;">
+            <div class="dlg-title">
+                <span>加入房間</span>
+                <button class="dlg-close" onclick="UI.backToEntry()">×</button>
+            </div>
+            <div class="dlg-body">
+                <label class="xp-label">房間代碼：</label><br>
+                <input type="text" class="xp-input" id="input-join-room-id"
+                       placeholder="輸入 6 位英數代碼" maxlength="6"
+                       style="width:100%; margin:4px 0 12px 0; letter-spacing:2px; text-transform:uppercase;">
+                <br>
+                <label class="xp-label">你的名稱：</label><br>
+                <input type="text" class="xp-input" id="input-join-name"
+                       placeholder="例如: Bob" maxlength="12"
+                       style="width:100%; margin:4px 0 12px 0;">
+            </div>
+            <div class="dlg-buttons">
+                <button class="xp-btn" onclick="UI.backToEntry()">上一步</button>
+                <button class="xp-btn btn-primary" id="btn-room-join-confirm">加入房間</button>
+            </div>
+        </div>
+
+        <!-- Room: Share (host lobby waiting room) -->
+        <div class="xp-dialog" id="dlg-room-share" style="display:none;">
+            <div class="dlg-title">
+                <span>房間已建立</span>
+                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
+            </div>
+            <div class="dlg-body">
+                <div class="room-code-box">
+                    <div class="room-code-label">房間代碼</div>
+                    <div class="room-code-value" id="share-room-id">------</div>
                 </div>
-                <div id="room-join-form" style="display:none;">
-                    <label class="xp-label">房間名稱：</label><br>
-                    <input type="text" class="xp-input" id="input-join-room-id"
-                           placeholder="輸入 Host 分享的房間名" style="width:100%; margin:4px 0;">
-                    <br><br>
-                    <label class="xp-label">你的名稱：</label><br>
-                    <input type="text" class="xp-input" id="input-join-name"
-                           placeholder="例如: Bob" style="width:100%; margin:4px 0;">
-                </div>
-                <div id="room-share-info" style="display:none;">
-                    <p>✅ 房間已建立！</p>
-                    <p>房間名稱：<strong id="share-room-id"></strong></p>
-                    <p>分享這個名稱給朋友，他們就可以加入。</p>
-                    <p>目前玩家：<span id="share-player-count">1</span> 人</p>
+                <p class="xp-label" style="text-align:center; margin:8px 0 12px 0;">
+                    把上方代碼分享給朋友，他們就可以加入。
+                </p>
+                <div class="room-lobby-players">
+                    <div class="room-lobby-header">
+                        <span>玩家（<span id="share-player-count">1</span> 人）</span>
+                    </div>
+                    <div id="room-lobby-list"></div>
                 </div>
             </div>
             <div class="dlg-buttons">
-                <button class="xp-btn" id="btn-room-create" style="display:none;">建立房間</button>
-                <button class="xp-btn" id="btn-room-join" style="display:none;">加入房間</button>
-                <button class="xp-btn" id="btn-room-copy" style="display:none;">📋 複製房間名稱</button>
-                <button class="xp-btn" id="btn-room-start" style="display:none;">▶️ 開始遊戲</button>
-                <button class="xp-btn" onclick="UI.closeDialog()">取消</button>
+                <button class="xp-btn" id="btn-room-copy">複製代碼</button>
+                <button class="xp-btn btn-primary" id="btn-room-start">開始遊戲</button>
+            </div>
+        </div>
+
+        <!-- Room: Connecting overlay -->
+        <div class="xp-dialog" id="dlg-room-connecting" style="display:none;">
+            <div class="dlg-title">
+                <span>連線中</span>
+            </div>
+            <div class="dlg-body" style="text-align:center; padding:24px;">
+                <div class="room-spinner"></div>
+                <p class="xp-label" id="connecting-text">正在建立 P2P 連線...</p>
             </div>
         </div>
 

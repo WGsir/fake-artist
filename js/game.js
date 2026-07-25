@@ -286,6 +286,16 @@ class GameHost {
                 }, fromPeerId);
                 break;
 
+            case "canvas-action":
+                // Relay non-stroke canvas operations. The host applies the
+                // action locally in app.js after this method returns.
+                peerManager.broadcastExcept({
+                    type: "canvas-relay-action",
+                    action: msg.action,
+                    fromPeerId: fromPeerId,
+                }, fromPeerId);
+                break;
+
             case "player-done":
                 // Only accept from current turn player
                 if (fromPeerId !== this.currentTurnPeerId) {

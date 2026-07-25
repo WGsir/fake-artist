@@ -36,6 +36,7 @@ const UI = {
         this._initDialogButtons();
         this._initDoneDrawingButton();
         this._initUndoButton();
+        this._initJoinRoomButton();
     },
 
     // ================================================================
@@ -116,7 +117,7 @@ const UI = {
 
                 // Update status bar
                 const toolNames = {
-                    pen: "鉛筆", brush: "筆刷", eraser: "橡皮擦", fill: "填色", picker: "選色器"
+                    pen: "鉛筆", eraser: "橡皮擦", fill: "填色", picker: "選色器"
                 };
                 this.updateStatus("tool", "工具: " + (toolNames[tool] || tool));
 
@@ -143,6 +144,7 @@ const UI = {
         slider.min = CONFIG.BRUSH.MIN_SIZE;
         slider.max = CONFIG.BRUSH.MAX_SIZE;
         slider.value = CONFIG.BRUSH.DEFAULT_SIZE;
+        this._refreshSizePreview(parseInt(slider.value));
 
         slider.addEventListener("input", () => {
             const size = parseInt(slider.value);
@@ -151,6 +153,7 @@ const UI = {
             } else {
                 drawingCanvas.setBrushSize(size);
             }
+            this._refreshSizePreview(size);
             if (this._onBrushSizeChange) this._onBrushSizeChange(size);
         });
     },
@@ -160,6 +163,15 @@ const UI = {
         slider.min = min;
         slider.max = max;
         slider.value = value;
+        this._refreshSizePreview(parseInt(value));
+    },
+
+    // 預覽圓的直徑跟隨目前筆刷/橡皮擦尺寸
+    _refreshSizePreview(size) {
+        const el = document.getElementById("brush-size-preview");
+        if (!el) return;
+        const clamped = Math.max(1, Math.min(size, 24));
+        el.style.setProperty("--preview-size", clamped + "px");
     },
 
     // ================================================================
@@ -170,6 +182,11 @@ const UI = {
         document.getElementById("btn-undo").addEventListener("click", () => {
             drawingCanvas.undo();
         });
+    },
+
+    _initJoinRoomButton() {
+        // (toolbar綠色「加入房間」按鈕已移除)
+        // 房間建立/加入改由 menu 或初始 entry dialog 進入
     },
 
     // ================================================================
@@ -268,22 +285,33 @@ const UI = {
     },
 
     _initDialogButtons() {
-        // ---- Room buttons ----
-        document.getElementById("btn-room-create").addEventListener("click", () => {
+        // ---- Room: entry choice ----
+        document.getElementById("btn-choice-create").addEventListener("click", () => {
+            this.showCreateRoomDialog();
+        });
+        document.getElementById("btn-choice-join").addEventListener("click", () => {
+            this.showJoinRoomDialog();
+        });
+
+        // ---- Room: create / join confirm ----
+        document.getElementById("btn-room-create-confirm").addEventListener("click", () => {
             if (this._onCreateRoom) this._onCreateRoom();
         });
-        document.getElementById("btn-room-join").addEventListener("click", () => {
+        document.getElementById("btn-room-join-confirm").addEventListener("click", () => {
             if (this._onJoinRoom) this._onJoinRoom();
         });
+
+        // ---- Room: share dialog actions ----
         document.getElementById("btn-room-start").addEventListener("click", () => {
             this.showDialog("dlg-word-setup");
         });
         document.getElementById("btn-room-copy").addEventListener("click", () => {
-            const roomId = document.getElementById("share-room-id").textContent;
-            navigator.clipboard.writeText(roomId).then(() => {
-                alert("已複製房間名稱: " + roomId);
+            const code = document.getElementById("share-room-id").textContent.trim();
+            navigator.clipboard.writeText(code).then(() => {
+                this._flashCopyButton();
+                this.updateRoomStatus("代碼已複製: " + code);
             }).catch(() => {
-                prompt("手動複製房間名稱:", roomId);
+                prompt("手動複製房間代碼:", code);
             });
         });
 
@@ -310,56 +338,108 @@ const UI = {
         });
     },
 
-    // ---- Room Dialog Variants ----
+    _flashCopyButton() {
+        const btn = document.getElementById("btn-room-copy");
+        if (!btn) return;
+        const original = btn.textContent;
+        btn.textContent = "✅ 已複製！";
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.textContent = original;
+            btn.disabled = false;
+        }, 1200);
+    },
 
+    // ================================================================
+    //  ROOM DIALOGS (entry / create / join / share / connecting)
+    // ================================================================
+
+    /** Show the initial "what do you want to do?" dialog. */
+    showEntryDialog() {
+        this._isHost = false;
+        this.showDialog("dlg-room-entry");
+    },
+
+    /** Host flow: ask for player name (room code is auto-generated later). */
     showCreateRoomDialog() {
-        document.getElementById("dlg-room-title").textContent = "🎨 開新房間";
-        document.getElementById("room-create-form").style.display = "block";
-        document.getElementById("room-join-form").style.display = "none";
-        document.getElementById("room-share-info").style.display = "none";
-        document.getElementById("btn-room-create").style.display = "inline-block";
-        document.getElementById("btn-room-join").style.display = "none";
-        document.getElementById("btn-room-copy").style.display = "none";
-        document.getElementById("btn-room-start").style.display = "none";
-        this.showDialog("dlg-room");
+        const input = document.getElementById("input-host-name");
+        if (input) input.value = "";
+        this.showDialog("dlg-room-create");
     },
 
+    /** Client flow: ask for room code + player name. */
     showJoinRoomDialog() {
-        document.getElementById("dlg-room-title").textContent = "🔗 加入房間";
-        document.getElementById("room-create-form").style.display = "none";
-        document.getElementById("room-join-form").style.display = "block";
-        document.getElementById("room-share-info").style.display = "none";
-        document.getElementById("btn-room-create").style.display = "none";
-        document.getElementById("btn-room-join").style.display = "inline-block";
-        document.getElementById("btn-room-copy").style.display = "none";
-        document.getElementById("btn-room-start").style.display = "none";
-        this.showDialog("dlg-room");
+        const codeInput = document.getElementById("input-join-room-id");
+        const nameInput = document.getElementById("input-join-name");
+        if (codeInput) codeInput.value = "";
+        if (nameInput) nameInput.value = "";
+        this.showDialog("dlg-room-join");
     },
 
-    showRoomCreated(roomId) {
-        document.getElementById("dlg-room-title").textContent = "🎨 房間已建立";
-        document.getElementById("room-create-form").style.display = "none";
-        document.getElementById("room-join-form").style.display = "none";
-        document.getElementById("room-share-info").style.display = "block";
-        document.getElementById("share-room-id").textContent = roomId;
-        document.getElementById("btn-room-create").style.display = "none";
-        document.getElementById("btn-room-join").style.display = "none";
-        document.getElementById("btn-room-copy").style.display = "inline-block";
-        document.getElementById("btn-room-start").style.display = "inline-block";
+    /** Go back from create/join dialog to the entry dialog. */
+    backToEntry() {
+        this.showEntryDialog();
+    },
+
+    /** Show the share/lobby dialog with the auto-generated code & live player list. */
+    showRoomShare(roomCode, players) {
         this._isHost = true;
-        this.showDialog("dlg-room");
+        document.getElementById("share-room-id").textContent = roomCode;
+        this.updateLobbyPlayers(players || []);
+        this.updateLobbyCount(players ? players.length : 1);
+        this.showDialog("dlg-room-share");
+    },
+
+    /** Update the player list shown inside the share dialog. */
+    updateLobbyPlayers(players) {
+        const list = document.getElementById("room-lobby-list");
+        if (!list) return;
+        list.innerHTML = "";
+
+        if (!players || players.length === 0) {
+            list.innerHTML = '<div class="room-lobby-entry" style="color:#808080;">等待玩家加入...</div>';
+            return;
+        }
+        const wrapped = document.createElement("div");
+        players.forEach(p => {
+            const entry = document.createElement("div");
+            entry.className = "room-lobby-entry";
+            entry.innerHTML = `
+                <span class="player-dot" style="background:${p.color || "#3498DB"}"></span>
+                <span>${p.name}${p.isMe ? " (你)" : ""}</span>
+                ${p.isHost ? '<span class="room-lobby-host-tag">Host</span>' : ""}
+            `;
+            wrapped.appendChild(entry);
+        });
+        list.innerHTML = wrapped.innerHTML;
+    },
+
+    updateLobbyCount(count) {
+        const el = document.getElementById("share-player-count");
+        if (el) el.textContent = count;
+    },
+
+    /** Show a modal spinner while P2P is being established. */
+    showConnecting(text) {
+        const t = document.getElementById("connecting-text");
+        if (t && text) t.textContent = text;
+        this.showDialog("dlg-room-connecting");
     },
 
     getRoomCreateInput() {
         return {
-            roomId: document.getElementById("input-room-id").value.trim(),
             playerName: document.getElementById("input-host-name").value.trim(),
         };
     },
 
     getRoomJoinInput() {
+        // Normalize the code: uppercase + strip the project prefix if user pasted full id
+        let raw = document.getElementById("input-join-room-id").value.trim().toUpperCase();
+        if (raw.startsWith(CONFIG.ROOM_CODE.PREFIX.toUpperCase())) {
+            raw = raw.slice(CONFIG.ROOM_CODE.PREFIX.length);
+        }
         return {
-            roomId: document.getElementById("input-join-room-id").value.trim(),
+            roomCode: raw,
             playerName: document.getElementById("input-join-name").value.trim(),
         };
     },
@@ -491,6 +571,12 @@ const UI = {
     updateStatus(field, text) {
         const el = document.getElementById("status-" + field);
         if (el) el.textContent = text;
+
+        // Keep the central, Gartic-style HUD in sync with the game state.
+        if (field === "tool") {
+            const prompt = document.getElementById("prompt-display");
+            if (prompt) prompt.textContent = text;
+        }
     },
 
     updateCoords(x, y) {
@@ -500,6 +586,8 @@ const UI = {
 
     updatePlayerCount(count) {
         document.getElementById("status-players").textContent = `玩家: ${count}`;
+        const sidebarCount = document.getElementById("sidebar-player-count");
+        if (sidebarCount) sidebarCount.textContent = count;
     },
 
     updateTurnIndicator(peerId, name) {
@@ -507,12 +595,16 @@ const UI = {
         const nameEl = document.getElementById("turn-name");
         if (indicator) indicator.style.display = "block";
         if (nameEl) nameEl.textContent = name || "-";
+        const round = document.getElementById("round-display");
+        if (round) round.textContent = name ? `輪到 ${name}` : "準備中";
     },
 
     updateRoomStatus(text) {
         const el = document.getElementById("status-room");
         el.textContent = text;
         el.style.color = text === "未連線" ? "#808080" : "#000000";
+        const hudStatus = document.getElementById("hud-room-status");
+        if (hudStatus) hudStatus.textContent = text;
     },
 
     // ================================================================
@@ -537,8 +629,12 @@ const UI = {
     showYourPrompt(word, category) {
         if (word) {
             this.updateStatus("tool", `你的題目: ${word} (${category})`);
+            const round = document.getElementById("round-display");
+            if (round) round.textContent = "真藝術家";
         } else {
             this.updateStatus("tool", `類別: ${category} (你是偽藝術家！)`);
+            const round = document.getElementById("round-display");
+            if (round) round.textContent = "偽藝術家";
         }
     },
 

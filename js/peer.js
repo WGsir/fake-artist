@@ -10,6 +10,7 @@ class PeerManager {
         this.isHost = false;
         this.myPeerId = null;
         this.myName = "";
+        this.roomCode = null;  // short 6-char code (without prefix)
 
         // Host: Map<peerId, DataConnection>
         // Client: single connection to host
@@ -30,12 +31,14 @@ class PeerManager {
     //  CREATE HOST
     // ================================================================
 
-    createHost(roomId, playerName) {
+    createHost(roomCode, playerName) {
         this.isHost = true;
         this.myName = playerName;
-        this.myPeerId = roomId;
+        this.roomCode = roomCode;
+        // 用 prefix+code 作為 PeerJS id，大幅降低與其他專案碰撞機率
+        this.myPeerId = (CONFIG.ROOM_CODE.PREFIX || "") + roomCode;
 
-        this.peer = new window.peerjs.Peer(roomId, {
+        this.peer = new window.peerjs.Peer(this.myPeerId, {
             host: CONFIG.PEER.HOST,
             port: CONFIG.PEER.PORT,
             path: CONFIG.PEER.PATH,
@@ -45,9 +48,9 @@ class PeerManager {
 
         this.peer.on("open", (id) => {
             console.log("[Peer] Host ready, ID:", id);
-            // The ID should match roomId since we requested it
-            // but use the returned ID just in case
+            // The ID should match myPeerId since we requested it, but use returned for safety
             this.myPeerId = id;
+            if (this.onHostReady) this.onHostReady(this.roomCode, this.myPeerId);
         });
 
         this.peer.on("connection", (conn) => {
@@ -105,9 +108,12 @@ class PeerManager {
     //  JOIN ROOM (Client)
     // ================================================================
 
-    joinRoom(roomId, playerName) {
+    joinRoom(roomCode, playerName) {
         this.isHost = false;
         this.myName = playerName;
+        this.roomCode = roomCode;
+        // 將短代碼加上 prefix 以對應 Host 的 peer id
+        const targetPeerId = (CONFIG.ROOM_CODE.PREFIX || "") + roomCode;
 
         this.peer = new window.peerjs.Peer({
             host: CONFIG.PEER.HOST,
@@ -122,7 +128,7 @@ class PeerManager {
             this.myPeerId = myId;
 
             // Connect to host
-            const conn = this.peer.connect(roomId, {
+            const conn = this.peer.connect(targetPeerId, {
                 label: "game-channel",
                 metadata: { name: playerName },
                 serialization: CONFIG.PEER.SERIALIZATION,
@@ -132,7 +138,7 @@ class PeerManager {
             this.hostConn = conn;
 
             conn.on("open", () => {
-                console.log("[Peer] Connected to host:", roomId);
+                console.log("[Peer] Connected to host:", targetPeerId);
                 // Send join message
                 conn.send({ type: "join", name: playerName });
                 if (this.onConnected) this.onConnected();

@@ -6,6 +6,11 @@
 (function () {
     "use strict";
 
+    // ---- Module-local state ----
+    // Note: drawingCanvas / peerManager / gameHost are global on canvas.js / peer.js / game.js
+    let hostPendingName = "";
+    let hostCreateRetries = 0;
+
     // ---- Bootstrap ----
     function init() {
         // 1. Init drawing canvas
@@ -34,6 +39,7 @@
         // 5. Wire up canvas callbacks
         drawingCanvas.onLocalStrokeComplete = onLocalStrokeComplete;
         drawingCanvas.onLocalStrokeBatch = onLocalStrokeBatch;
+        drawingCanvas.onLocalCanvasAction = onLocalCanvasAction;
 
         // 6. Wire up peer callbacks
         peerManager.onPlayerJoin = onPlayerJoin;
@@ -43,6 +49,7 @@
         peerManager.onConnected = onConnectedToHost;
         peerManager.onDisconnected = onDisconnectedFromHost;
         peerManager.onError = onPeerError;
+        peerManager.onHostReady = onHostReady;
 
         // 7. Wire up game host-as-player callbacks
         onGamePrompt = handleGamePrompt;
@@ -52,8 +59,8 @@
         onFakeGuessPrompt = handleFakeGuessPrompt;
         onGameOver = handleGameOver;
 
-        // 8. Show initial room dialog
-        UI.showCreateRoomDialog();
+        // 8. Show initial room dialog (entry choice)
+        UI.showEntryDialog();
 
         console.log("[App] Fake Artist initialized!");
     }
@@ -104,43 +111,103 @@
         }
     }
 
+    // ---- Canvas actions (fill, undo, redo, clear) ----
+    // These are small semantic operations instead of whole-canvas bitmaps,
+    // which keeps them reliable even after a large flood fill.
+    function onLocalCanvasAction(action) {
+        if (!peerManager) return;
+        if (!peerManager.isHost) {
+            peerManager.sendToHost({ type: "canvas-action", action: action });
+        } else {
+            peerManager.broadcastExcept({
+                type: "canvas-relay-action",
+                action: action,
+                fromPeerId: peerManager.myPeerId,
+            }, peerManager.myPeerId);
+        }
+    }
+
     // ================================================================
     //  ROOM CALLBACKS
     // ================================================================
 
-    function onCreateRoom() {
-        const { roomId, playerName } = UI.getRoomCreateInput();
-        if (!roomId || !playerName) {
-            alert("請輸入房間名稱和你的名稱！");
-            return;
+    // ---- Host ----
+    function generateRoomCode() {
+        const cs = CONFIG.ROOM_CODE.CHARSET;
+        const len = CONFIG.ROOM_CODE.LENGTH;
+        let out = "";
+        for (let i = 0; i < len; i++) {
+            out += cs[Math.floor(Math.random() * cs.length)];
         }
-
-        peerManager.createHost(roomId, playerName);
-
-        // Show room created screen (will also wait for peer open)
-        setTimeout(() => {
-            UI.showRoomCreated(roomId);
-            UI.updateRoomStatus("房間: " + roomId + " (Host)");
-            UI.updatePlayerCount(1);
-            UI.updatePlayerList([{
-                peerId: peerManager.myPeerId,
-                name: playerName,
-                color: "#3498DB",
-                hasDrawn: false,
-                isMe: true,
-            }], null);
-        }, 500);
+        return out;
     }
 
-    function onJoinRoom() {
-        const { roomId, playerName } = UI.getRoomJoinInput();
-        if (!roomId || !playerName) {
-            alert("請輸入房間名稱和你的名稱！");
+    function _hostLobbyPlayers() {
+        const hostSelf = {
+            peerId: peerManager.myPeerId,
+            name: peerManager.myName,
+            color: "#3498DB",
+            isMe: true,
+            isHost: true,
+        };
+        const others = Array.from(peerManager.connections.values()).map(conn => ({
+            peerId: conn.peer,
+            name: conn.metadata ? conn.metadata.name : "Unknown",
+            color: "#FFC080",
+            isMe: false,
+            isHost: false,
+        }));
+        return [hostSelf, ...others];
+    }
+
+    function onCreateRoom() {
+        const { playerName } = UI.getRoomCreateInput();
+        if (!playerName) {
+            alert("請輸入你的名稱！");
             return;
         }
 
-        peerManager.joinRoom(roomId, playerName);
-        UI.closeDialog();
+        // 生成房間代碼並嘗試建立；若碰撞則由 onPeerError 重試
+        hostPendingName = playerName;
+        hostCreateRetries = 0;
+        startHostWithGeneratedCode();
+    }
+
+    function startHostWithGeneratedCode() {
+        const code = generateRoomCode();
+        hostCreateRetries += 1;
+        UI.showConnecting("正在建立房間代碼 " + code + "...");
+        peerManager.createHost(code, hostPendingName);
+    }
+
+    function onHostReady(roomCode, peerId) {
+        // Peer 已開通，可安全顯示 share 對話
+        UI.showRoomShare(roomCode, _hostLobbyPlayers());
+        UI.updatePlayerCount(peerManager.getPlayerCount());
+        UI.updatePlayerList(_hostLobbyPlayers(), null);
+        UI.updateRoomStatus("房間代碼: " + roomCode + " (Host)");
+    }
+
+    // ---- Join (client) ----
+    function onJoinRoom() {
+        const { roomCode, playerName } = UI.getRoomJoinInput();
+        if (!roomCode) {
+            alert("請輸入房間代碼！");
+            UI.showJoinRoomDialog();
+            return;
+        }
+        if (roomCode.length !== CONFIG.ROOM_CODE.LENGTH) {
+            alert("房間代碼必須是 " + CONFIG.ROOM_CODE.LENGTH + " 個字元！");
+            UI.showJoinRoomDialog();
+            return;
+        }
+        if (!playerName) {
+            alert("請輸入你的名稱！");
+            return;
+        }
+
+        peerManager.joinRoom(roomCode, playerName);
+        UI.showConnecting("正在連線到房間 " + roomCode + "...");
         UI.updateRoomStatus("連線中...");
     }
 
@@ -162,11 +229,13 @@
         }
         const count = peerManager.getPlayerCount();
         UI.updatePlayerCount(count);
-        UI.updatePlayerList(peerManager.getPlayerList(), null);
-
-        // Update room share dialog if open
-        const shareCount = document.getElementById("share-player-count");
-        if (shareCount) shareCount.textContent = count;
+        const lobbyPlayers = _hostLobbyPlayers();
+        UI.updatePlayerList(lobbyPlayers, null);
+        // 同步更新 share 對話框中的玩家列表
+        if (UI._isHost) {
+            UI.updateLobbyPlayers(lobbyPlayers);
+            UI.updateLobbyCount(count);
+        }
     }
 
     function onPlayerLeave(peerId) {
@@ -175,12 +244,14 @@
         }
         const count = peerManager.getPlayerCount();
         UI.updatePlayerCount(count);
-        UI.updatePlayerList(peerManager.getPlayerList(),
+        const lobbyPlayers = _hostLobbyPlayers();
+        UI.updatePlayerList(lobbyPlayers,
             gameHost ? gameHost.currentTurnPeerId : null);
-
-        // Update room share dialog if open
-        const shareCount = document.getElementById("share-player-count");
-        if (shareCount) shareCount.textContent = count;
+        // 同步更新 share 對話框中的玩家列表
+        if (UI._isHost) {
+            UI.updateLobbyPlayers(lobbyPlayers);
+            UI.updateLobbyCount(count);
+        }
     }
 
     function onHostMessage(msg) {
@@ -233,6 +304,12 @@
                 }
                 break;
 
+            case "canvas-relay-action":
+                if (msg.action && msg.fromPeerId !== peerManager.myPeerId) {
+                    drawingCanvas.applyRemoteCanvasAction(msg.action);
+                }
+                break;
+
             case "voting-start":
                 handleVotingStart(msg.players);
                 break;
@@ -251,6 +328,7 @@
                 break;
 
             case "join-rejected":
+                UI.closeDialog();
                 alert("無法加入：遊戲已經開始了！");
                 UI.updateRoomStatus("未連線");
                 break;
@@ -278,11 +356,19 @@
                     drawingCanvas.drawRemoteStroke(msg.strokeData); // smooth replay
                 }
                 break;
+            case "canvas-action":
+                if (msg.action) {
+                    drawingCanvas.applyRemoteCanvasAction(msg.action);
+                }
+                break;
         }
     }
 
     function onConnectedToHost() {
         console.log("[App] Connected to host!");
+        UI.closeDialog();
+        const code = peerManager.roomCode || "?";
+        UI.updateRoomStatus("已連線 — 房間代碼: " + code);
     }
 
     function onDisconnectedFromHost() {
@@ -295,10 +381,39 @@
 
     function onPeerError(err) {
         console.error("[App] Peer error:", err);
+
+        // Host 端：房間代碼撞號 → 重新產生代碼再試
+        if (peerManager.isHost && err.type === "unavailable-id") {
+            if (hostCreateRetries < CONFIG.ROOM_CODE.COLLISION_RETRIES) {
+                console.warn("[App] Room code collision, retrying (" +
+                    hostCreateRetries + "/" + CONFIG.ROOM_CODE.COLLISION_RETRIES + ")");
+                // 清掉舊 peer 再重試
+                try { peerManager.disconnect(); } catch (e) { /* ignore */ }
+                startHostWithGeneratedCode();
+                return;
+            }
+            UI.closeDialog();
+            alert("連續產生房間代碼都發生碰撞，請稍後再試。");
+            return;
+        }
+
+        // Client 端的錯誤
         if (err.type === "peer-unavailable") {
-            alert("找不到該房間，請確認房間名稱是否正確。");
-        } else if (err.type === "unavailable-id") {
-            alert("房間名稱已被使用，請換一個名稱。");
+            UI.closeDialog();
+            UI.updateRoomStatus("未連線");
+            alert("找不到這個房間代碼！\n" +
+                "請確認 6 位英數代碼是否正確（不分大小寫），\n" +
+                "或請房主重新分享代碼。");
+            UI.showJoinRoomDialog();
+            return;
+        }
+
+        if (err.type === "unavailable-id") {
+            UI.closeDialog();
+            alert("無法建立連線，請稍後再試。");
+        } else {
+            // 連線中其他錯誤：關掉 spinner 視窗
+            UI.closeDialog();
         }
     }
 
@@ -466,21 +581,11 @@
             if (gameHost) gameHost.reset();
             gameHost = null;
 
-            // Show room dialog (share-info view)
-            UI._isHost = true;
-            document.getElementById("dlg-room-title").textContent = "🎨 房間已建立";
-            document.getElementById("room-create-form").style.display = "none";
-            document.getElementById("room-join-form").style.display = "none";
-            document.getElementById("room-share-info").style.display = "block";
-            document.getElementById("btn-room-create").style.display = "none";
-            document.getElementById("btn-room-join").style.display = "none";
-            document.getElementById("btn-room-copy").style.display = "inline-block";
-            document.getElementById("btn-room-start").style.display = "inline-block";
-            document.getElementById("share-player-count").textContent =
-                peerManager.getPlayerCount();
-            UI.showDialog("dlg-room");
+            // 回到 share/lobby 對話框使用同一個簡單 API
+            UI.showRoomShare(peerManager.roomCode || "?", _hostLobbyPlayers());
+            UI.updatePlayerCount(peerManager.getPlayerCount());
             UI.updateStatus("tool", "工具: 鉛筆");
-            UI.updateStatus("room", "房間: " + peerManager.myPeerId + " (Host)");
+            UI.updateStatus("room", "房間代碼: " + (peerManager.roomCode || "?") + " (Host)");
             UI.setCanvasEnabled(true);
         } else {
             UI.updateStatus("tool", "等待 Host 開始新遊戲...");

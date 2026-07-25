@@ -10,7 +10,7 @@ class DrawingCanvas {
         this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
 
         // ---- State ----
-        this.tool = "pen";          // pen | brush | eraser | fill | picker
+        this.tool = "pen";          // pen | eraser | fill | picker
         this.fgColor = CONFIG.DEFAULT_FG;
         this.bgColor = CONFIG.DEFAULT_BG;
         this.brushSize = CONFIG.BRUSH.DEFAULT_SIZE;
@@ -28,10 +28,18 @@ class DrawingCanvas {
         this.onRemoteStroke = null; // callback set by app.js
         this.onLocalStrokeComplete = null; // callback set by app.js
         this.onLocalStrokeBatch = null;    // callback set by app.js for real-time sync
+        // Called after a local non-stroke canvas action (fill, undo, redo,
+        // clear). App relays the small action payload to the other players.
+        this.onLocalCanvasAction = null;
 
         // ---- Batch sync timer ----
         this._batchTimer = null;
         this._lastBatchIndex = 0;
+        this._strokeSequence = 0;
+
+        // Remote strokes are rendered from their real-time batches. The
+        // matching "full" message is then only used to commit undo history.
+        this._remoteStrokeStates = new Map();
 
         // ---- Init ----
         this._initCanvas();
@@ -87,7 +95,6 @@ class DrawingCanvas {
         this.tool = tool;
         const cursors = {
             pen: "crosshair",
-            brush: "crosshair",
             eraser: "cell",
             fill: "crosshair",
             picker: "crosshair",
@@ -131,8 +138,8 @@ class DrawingCanvas {
     _getPos(e) {
         const rect = this.canvas.getBoundingClientRect();
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
+            x: (e.clientX - rect.left) * (this.cssWidth / rect.width),
+            y: (e.clientY - rect.top) * (this.cssHeight / rect.height),
         };
     }
 
@@ -154,6 +161,7 @@ class DrawingCanvas {
         this.isDrawing = true;
         this.strokePoints = [pos];
         this.strokeData = {
+            id: `${Date.now().toString(36)}-${++this._strokeSequence}`,
             tool: this.tool,
             color: this.tool === "eraser" ? null : this.fgColor,
             size: this.getCurrentSize(),
@@ -168,6 +176,10 @@ class DrawingCanvas {
         this.ctx.beginPath();
         this.ctx.arc(pos.x, pos.y, this.ctx.lineWidth / 2, 0, Math.PI * 2);
         this.ctx.fill();
+
+        // Send the first point immediately, so remote players see a dot even
+        // before the first interval tick.
+        this._sendBatch();
 
         // Start batch sync timer
         this._startBatchSync();
@@ -207,6 +219,17 @@ class DrawingCanvas {
     _onPointerUp(e) {
         if (!this.isDrawing) return;
 
+        // A quick movement can end between pointermove events. Include the
+        // pointerup position so the last visible segment is never omitted.
+        if (e.type === "pointerup") {
+            const pos = this._getPos(e);
+            const last = this.strokePoints[this.strokePoints.length - 1];
+            if (!last || pos.x !== last.x || pos.y !== last.y) {
+                this.strokePoints.push(pos);
+                this.strokeData.points.push(pos);
+            }
+        }
+
         // Stop batch sync
         this._stopBatchSync();
 
@@ -223,19 +246,25 @@ class DrawingCanvas {
             this.ctx.stroke();
         }
 
+        // Flush the final points before the completion message. DataConnection
+        // preserves message order, so receivers can commit this exact stroke.
+        this._sendBatch();
+
         this.isDrawing = false;
 
         // Save undo state
         this._saveState();
 
         // Notify app of completed stroke (for sync)
-        if (this.onLocalStrokeComplete && this.strokeData.points.length > 1) {
+        if (this.onLocalStrokeComplete && this.strokeData.points.length > 0) {
             this.onLocalStrokeComplete(this.strokeData);
         }
 
         this.strokePoints = [];
         this.strokeData = null;
-        this.canvas.releasePointerCapture(e.pointerId);
+        if (this.canvas.hasPointerCapture && this.canvas.hasPointerCapture(e.pointerId)) {
+            this.canvas.releasePointerCapture(e.pointerId);
+        }
     }
 
     _setupStrokeCtx() {
@@ -246,6 +275,7 @@ class DrawingCanvas {
         } else {
             this.ctx.globalCompositeOperation = "source-over";
             this.ctx.strokeStyle = this.fgColor;
+            this.ctx.fillStyle = this.fgColor;
             this.ctx.lineWidth = this.brushSize;
         }
     }
@@ -254,17 +284,17 @@ class DrawingCanvas {
     //  FLOOD FILL (simple scanline)
     // ================================================================
 
-    _floodFill(pos) {
+    _floodFill(pos, { color = this.fgColor, notify = true } = {}) {
         const ctx = this.ctx;
-        const w = this.cssWidth;
-        const h = this.cssHeight;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
 
         // Get target color at click
         const imgData = ctx.getImageData(0, 0, w, h);
-        const px = Math.floor(pos.x);
-        const py = Math.floor(pos.y);
+        const px = Math.floor(pos.x * this.dpr);
+        const py = Math.floor(pos.y * this.dpr);
 
-        if (px < 0 || px >= w || py < 0 || py >= h) return;
+        if (px < 0 || px >= w || py < 0 || py >= h) return false;
 
         const idx = (py * w + px) * 4;
         const targetR = imgData.data[idx];
@@ -273,11 +303,11 @@ class DrawingCanvas {
         const targetA = imgData.data[idx + 3];
 
         // Parse fill color
-        const fill = this._parseColor(this.fgColor);
-        if (!fill) return;
+        const fill = this._parseColor(color);
+        if (!fill) return false;
 
         // If same color, skip
-        if (targetR === fill.r && targetG === fill.g && targetB === fill.b && targetA === 255) return;
+        if (targetR === fill.r && targetG === fill.g && targetB === fill.b && targetA === 255) return false;
 
         // Scanline flood fill
         const stack = [[px, py]];
@@ -325,6 +355,44 @@ class DrawingCanvas {
 
         ctx.putImageData(imgData, 0, 0);
         this._saveState();
+
+        if (notify) {
+            this._emitCanvasAction({
+                type: "fill",
+                x: pos.x,
+                y: pos.y,
+                color,
+            });
+        }
+        return true;
+    }
+
+    _emitCanvasAction(action) {
+        if (typeof this.onLocalCanvasAction === "function") {
+            this.onLocalCanvasAction(action);
+        }
+    }
+
+    applyRemoteCanvasAction(action) {
+        if (!action || !action.type) return;
+
+        switch (action.type) {
+            case "fill":
+                this._floodFill({ x: action.x, y: action.y }, {
+                    color: action.color,
+                    notify: false,
+                });
+                break;
+            case "undo":
+                this.undo(false);
+                break;
+            case "redo":
+                this.redo(false);
+                break;
+            case "clear":
+                this.clearCanvas({ color: action.color, notify: false });
+                break;
+        }
     }
 
     _matchColor(imgData, x, y, r, g, b, a) {
@@ -352,9 +420,9 @@ class DrawingCanvas {
     // ================================================================
 
     _pickColor(pos) {
-        const px = Math.floor(pos.x);
-        const py = Math.floor(pos.y);
-        if (px < 0 || px >= this.cssWidth || py < 0 || py >= this.cssHeight) return;
+        const px = Math.floor(pos.x * this.dpr);
+        const py = Math.floor(pos.y * this.dpr);
+        if (px < 0 || px >= this.canvas.width || py < 0 || py >= this.canvas.height) return;
 
         const imgData = this.ctx.getImageData(px, py, 1, 1);
         const r = imgData.data[0];
@@ -390,12 +458,18 @@ class DrawingCanvas {
     _sendBatch() {
         if (!this.isDrawing || !this.strokeData) return;
 
-        const newPoints = this.strokeData.points.slice(this._lastBatchIndex);
+        // Repeat the previous end point in every later batch. Each batch can
+        // therefore connect to the already-rendered segment without a gap.
+        const startIndex = this._lastBatchIndex === 0
+            ? 0
+            : this._lastBatchIndex - 1;
+        const newPoints = this.strokeData.points.slice(startIndex);
         if (newPoints.length === 0) return;
 
         this._lastBatchIndex = this.strokeData.points.length;
 
         const batch = {
+            id: this.strokeData.id,
             tool: this.strokeData.tool,
             color: this.strokeData.color,
             size: this.strokeData.size,
@@ -415,7 +489,11 @@ class DrawingCanvas {
         const ctx = this.ctx;
         const points = batchData.points;
 
-        if (points.length === 0) return;
+        if (!Array.isArray(points) || points.length === 0) return;
+        if (batchData.id) {
+            if (this._remoteStrokeStates.get(batchData.id) === "completed") return;
+            this._remoteStrokeStates.set(batchData.id, "streaming");
+        }
 
         if (batchData.tool === "eraser") {
             ctx.globalCompositeOperation = "destination-out";
@@ -423,6 +501,7 @@ class DrawingCanvas {
         } else {
             ctx.globalCompositeOperation = "source-over";
             ctx.strokeStyle = batchData.color;
+            ctx.fillStyle = batchData.color;
             ctx.lineWidth = batchData.size;
         }
         ctx.lineCap = "round";
@@ -452,7 +531,20 @@ class DrawingCanvas {
         const ctx = this.ctx;
         const points = strokeData.points;
 
-        if (points.length < 1) return;
+        if (!Array.isArray(points) || points.length < 1) return;
+
+        // All current clients receive every real-time batch before this
+        // completion message. Do not redraw the full path, which would make
+        // the overlapping batches look darker and may leave visual seams.
+        if (strokeData.id) {
+            const state = this._remoteStrokeStates.get(strokeData.id);
+            if (state === "completed") return;
+            if (state === "streaming") {
+                this._remoteStrokeStates.set(strokeData.id, "completed");
+                this._saveState();
+                return;
+            }
+        }
 
         if (strokeData.tool === "eraser") {
             ctx.globalCompositeOperation = "destination-out";
@@ -460,6 +552,7 @@ class DrawingCanvas {
         } else {
             ctx.globalCompositeOperation = "source-over";
             ctx.strokeStyle = strokeData.color;
+            ctx.fillStyle = strokeData.color;
             ctx.lineWidth = strokeData.size;
         }
         ctx.lineCap = "round";
@@ -471,6 +564,8 @@ class DrawingCanvas {
             ctx.arc(points[0].x, points[0].y, strokeData.size / 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalCompositeOperation = "source-over";
+            if (strokeData.id) this._remoteStrokeStates.set(strokeData.id, "completed");
+            this._saveState();
             return;
         }
 
@@ -503,6 +598,7 @@ class DrawingCanvas {
 
         // Save undo state after remote stroke
         this._saveState();
+        if (strokeData.id) this._remoteStrokeStates.set(strokeData.id, "completed");
     }
 
     // ================================================================
@@ -522,7 +618,7 @@ class DrawingCanvas {
         }
     }
 
-    undo() {
+    undo(notify = true) {
         if (this.undoStack.length < 2) return false; // keep initial blank
 
         // Move current to redo
@@ -531,15 +627,17 @@ class DrawingCanvas {
         // Restore previous
         const prev = this.undoStack[this.undoStack.length - 1];
         this.ctx.putImageData(prev, 0, 0);
+        if (notify) this._emitCanvasAction({ type: "undo" });
         return true;
     }
 
-    redo() {
+    redo(notify = true) {
         if (this.redoStack.length === 0) return false;
 
         const next = this.redoStack.pop();
         this.undoStack.push(next);
         this.ctx.putImageData(next, 0, 0);
+        if (notify) this._emitCanvasAction({ type: "redo" });
         return true;
     }
 
@@ -555,11 +653,12 @@ class DrawingCanvas {
     //  CLEAR
     // ================================================================
 
-    clearCanvas() {
+    clearCanvas({ color = this.bgColor, notify = true } = {}) {
         this.ctx.globalCompositeOperation = "source-over";
-        this.ctx.fillStyle = this.bgColor;
+        this.ctx.fillStyle = color;
         this.ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
         this._saveState();
+        if (notify) this._emitCanvasAction({ type: "clear", color });
     }
 
     // ================================================================
@@ -569,7 +668,8 @@ class DrawingCanvas {
     resetCanvas() {
         this.undoStack.length = 0;
         this.redoStack.length = 0;
-        this.clearCanvas();
+        this._remoteStrokeStates.clear();
+        this.clearCanvas({ notify: false });
     }
 
     // ================================================================

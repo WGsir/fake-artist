@@ -160,6 +160,24 @@
         return [hostSelf, ...others];
     }
 
+    // 以「房主身上的 gameHost」資料為來源構造玩家列表（含 hasDrawn / color / currentTurn）
+    // 遊戲進行中一律使用此函式；大廳狀態時退回 _hostLobbyPlayers()
+    function _hostActivePlayers() {
+        if (!gameHost || gameHost.state === "lobby" || gameHost.players.size === 0) {
+            const list = _hostLobbyPlayers();
+            return list.map(p => ({ ...p, hasDrawn: false }));
+        }
+        const list = [...gameHost.players.values()].map(p => ({
+            peerId: p.peerId,
+            name: p.name,
+            color: p.color,
+            hasDrawn: !!p.hasDrawn,
+            isMe: p.peerId === peerManager.myPeerId,
+            isHost: p.peerId === peerManager.myPeerId,
+        }));
+        return list;
+    }
+
     function onCreateRoom() {
         const { playerName } = UI.getRoomCreateInput();
         if (!playerName) {
@@ -184,7 +202,7 @@
         // Peer 已開通，可安全顯示 share 對話
         UI.showRoomShare(roomCode, _hostLobbyPlayers());
         UI.updatePlayerCount(peerManager.getPlayerCount());
-        UI.updatePlayerList(_hostLobbyPlayers(), null);
+        UI.updatePlayerList(_hostActivePlayers(), null);
         UI.updateRoomStatus("房間代碼: " + roomCode + " (Host)");
     }
 
@@ -229,11 +247,11 @@
         }
         const count = peerManager.getPlayerCount();
         UI.updatePlayerCount(count);
-        const lobbyPlayers = _hostLobbyPlayers();
-        UI.updatePlayerList(lobbyPlayers, null);
+        UI.updatePlayerList(_hostActivePlayers(),
+            gameHost ? gameHost.currentTurnPeerId : null);
         // 同步更新 share 對話框中的玩家列表
         if (UI._isHost) {
-            UI.updateLobbyPlayers(lobbyPlayers);
+            UI.updateLobbyPlayers(_hostLobbyPlayers());
             UI.updateLobbyCount(count);
         }
     }
@@ -244,12 +262,11 @@
         }
         const count = peerManager.getPlayerCount();
         UI.updatePlayerCount(count);
-        const lobbyPlayers = _hostLobbyPlayers();
-        UI.updatePlayerList(lobbyPlayers,
+        UI.updatePlayerList(_hostActivePlayers(),
             gameHost ? gameHost.currentTurnPeerId : null);
         // 同步更新 share 對話框中的玩家列表
         if (UI._isHost) {
-            UI.updateLobbyPlayers(lobbyPlayers);
+            UI.updateLobbyPlayers(_hostLobbyPlayers());
             UI.updateLobbyCount(count);
         }
     }
@@ -282,6 +299,9 @@
                 UI.setCanvasEnabled(false);
                 UI.showDoneDrawingButton(false);
                 UI.updateStatus("tool", "等待題目...");
+                // 題目尚未發送 → 先清空 HUD 題目/類型欄，等 your-prompt 來再填
+                UI.setGamePrompt("?", "?", "準備中");
+                UI.setTurn("idle", {});  // 等 turn-change 來之前先 reset
                 break;
 
             case "your-prompt":
@@ -317,6 +337,7 @@
             case "vote-result":
                 // Show vote results but wait for game-over for final result
                 UI.updateStatus("tool", `被指控: ${msg.accusedName}`);
+                UI.setTurn("voting", { sub: `大家指控 ${msg.accusedName} — 等待偽藝術家猜題…` });
                 break;
 
             case "fake-guess-prompt":
@@ -325,6 +346,18 @@
 
             case "game-over":
                 handleGameOver(msg);
+                break;
+
+            case "new-game-wait":
+                // 房主已重置遊戲，玩家回到等待狀態
+                UI.closeDialog();
+                drawingCanvas.resetCanvas();
+                UI.setCanvasEnabled(false);
+                UI.updateStatus("tool", "等待房主開始新遊戲...");
+                UI.updateStatus("room", "已連線");
+                // 清空 HUD 題目/類型（回到待機）
+                UI.resetGamePrompt("等待房主開始遊戲", "—", "準備中");
+                UI.setTurn("idle", { text: "等待房主開始新遊戲" });
                 break;
 
             case "join-rejected":
@@ -369,6 +402,9 @@
         UI.closeDialog();
         const code = peerManager.roomCode || "?";
         UI.updateRoomStatus("已連線 — 房間代碼: " + code);
+        // 加入成功 → 顯示「等待房主開始」提示（不關閉、不可跳過）
+        UI.setTurn("idle", { text: "已加入房間，等待房主開始遊戲", sub: `房間代碼: ${code}` });
+        UI.setCanvasEnabled(false);
     }
 
     function onDisconnectedFromHost() {
@@ -433,19 +469,33 @@
         UI.setCanvasEnabled(true);
         UI.showDoneDrawingButton(true);
         UI.updateStatus("tool", "輪到你畫了！🎨");
+        UI.setTurn("myturn", {});
     }
 
     function handleTurnChange(msg) {
         const isMe = msg.peerId === peerManager.myPeerId;
 
+        if (peerManager.isHost) {
+            // 房主 UI：直接更新自己的玩家列表，以顯示誰正在畫/已畫
+            UI.updatePlayerList(_hostActivePlayers(),
+                gameHost ? gameHost.currentTurnPeerId : msg.peerId);
+        }
+
         if (isMe) {
             UI.setCanvasEnabled(true);
             UI.showDoneDrawingButton(true);
             UI.updateStatus("tool", `輪到你畫了！(第 ${msg.round}/${msg.totalRounds} 輪)`);
+            UI.setTurn("myturn", {
+                round: `第 ${msg.round}/${msg.totalRounds} 輪`,
+            });
         } else {
             UI.setCanvasEnabled(false);
             UI.showDoneDrawingButton(false);
             UI.updateStatus("tool", `輪到: ${msg.name} (第 ${msg.round}/${msg.totalRounds} 輪)`);
+            UI.setTurn("awaiting", {
+                name: msg.name,
+                round: `第 ${msg.round}/${msg.totalRounds} 輪 — 等 ${msg.name} 畫完`,
+            });
         }
 
         // Update turn indicator only (player list already updated via player-list message)
@@ -456,6 +506,7 @@
         UI.setCanvasEnabled(false);
         UI.showDoneDrawingButton(false);
         UI.updateStatus("tool", "🗳️ 投票時間！");
+        UI.setTurn("voting", {});
         UI.showVoteDialog(players);
     }
 
@@ -463,6 +514,7 @@
         UI.setCanvasEnabled(false);
         UI.showDoneDrawingButton(false);
         UI.updateStatus("tool", "🤔 你被揪出來了！猜猜題目？");
+        UI.setTurn("guessing", { sub: `類別「${category}」・字數 ${wordLength}` });
         UI.showFakeGuessDialog(category, wordLength);
     }
 
@@ -470,7 +522,11 @@
         UI.setCanvasEnabled(false);
         UI.showDoneDrawingButton(false);
         UI.updateStatus("tool", "遊戲結束");
-        UI.showGameOver(result);
+        // 遊戲結算 → HUD 公開顯示本局題目與類型，右側設為「結算」
+        UI.setGamePrompt(result.word, result.category, "結算");
+        UI.setTurn("idle", { text: "遊戲結束", sub: "等待房主開始新遊戲" });
+        // 只有房主可按「開始新遊戲」按鈕
+        UI.showGameOver(result, !!peerManager.isHost);
     }
 
     // ================================================================
@@ -478,11 +534,9 @@
     // ================================================================
 
     function onStartGame() {
-        const { word, category, rounds } = UI.getWordSetupInput();
-        if (!word || !category) {
-            alert("請輸入題目和類別！");
-            return;
-        }
+        // 題目由系統從題庫隨機生成；固定 2 輪
+        const { word, category } = _pickRandomPrompt();
+        const rounds = CONFIG.GAME.DRAW_ROUNDS;
 
         if (peerManager.getPlayerCount() < CONFIG.GAME.MIN_PLAYERS) {
             alert(`至少需要 ${CONFIG.GAME.MIN_PLAYERS} 名玩家！`);
@@ -499,13 +553,37 @@
         });
 
         // Start game
+        // 在啟動遊戲「之前」先把 banner reset 成 idle，
+        // 之後 gameHost.startGame 會同步觸發 turn-change / onMyTurn 把 banner
+        // 蓋成正確狀態（例如房主是第一個作畫 → myturn）。若 reset 放在 startGame 之後
+        // 會把剛剛設好的 myturn banner 覆蓋回 idle，造成 banner 顯示錯誤。
+        UI.resetTurnBanner();
         const started = gameHost.startGame(word, category, rounds);
         if (started) {
             UI.closeDialog();
             drawingCanvas.resetCanvas();
-            UI.setCanvasEnabled(false); // will be enabled when it's host's turn
-            UI.updateStatus("room", `遊戲中 | 題目: ${word} | 類別: ${category}`);
+            // 注意：不強制 setCanvasEnabled(false)。
+            // gameHost.startGame 已透過 turn-change/onMyTurn 把「輪到」的玩家（含房主）啟用。
+            // 若房主是第一個畫的玩家，這裡關掉會害他畫不出來，所以只在 client 等待邏輯裡處理。
+            if (!peerManager.isHost) {
+                // client 由 host 的 turn-change 訊息控制啟用
+                UI.setCanvasEnabled(false);
+            }
+            // 房主這邊立刻顯示遊戲中玩家列表
+            UI.updatePlayerList(_hostActivePlayers(),
+                gameHost ? gameHost.currentTurnPeerId : null);
+            // 房主也在 HUD 顯示本局題目/類型（房主題目 caller 還沒至 setGamePrompt，這裡先填）
+            UI.setGamePrompt(word, category, "遊戲中");
+            UI.updateStatus("room", `遊戲中 | 題目已隨機分配 | 類別: ${category}`);
+        } else {
+            alert("無法開始遊戲，請稍候再試。");
         }
+    }
+
+    // 從題庫隨機挑一題
+    function _pickRandomPrompt() {
+        const bank = CONFIG.WORD_BANK;
+        return bank[Math.floor(Math.random() * bank.length)];
     }
 
     function onDoneDrawing() {
@@ -516,6 +594,9 @@
                 if (hostPlayer) hostPlayer.hasDrawn = true;
                 gameHost._advanceTurn();
             }
+            // 立刻刷新房主自己看到的玩家列表（標記你自己為已畫）
+            UI.updatePlayerList(_hostActivePlayers(),
+                gameHost ? gameHost.currentTurnPeerId : null);
         } else {
             // Client done drawing
             peerManager.sendToHost({
@@ -526,6 +607,7 @@
         UI.setCanvasEnabled(false);
         UI.showDoneDrawingButton(false);
         UI.updateStatus("tool", "等待其他人完成...");
+        UI.setTurn("awaiting", { text: "你畫完了，等其他人…", round: "已交回畫筆" });
     }
 
     function onVote(votedPeerId) {
@@ -537,14 +619,23 @@
                     votedPeerId: votedPeerId,
                 }, peerManager.myPeerId);
             }
+            // 注意：這裡「不」呼叫 UI.closeDialog()。
+            // 因為若房主是最後一個投票者，gameHost.handleMessage 會同步觸發
+            // _resolveVotes → handleFakeGuessPrompt 或 handleGameOver，而那些 handler
+            // 會顯示「猜題」或「結算」視窗。若這裡再 closeDialog() 會把剛顯示的視窗
+            // 立刻關掉，造成房主看不到下一步視窗。
+            // 若還沒到結算（只是登記一票），就關閉投票視窗等結果。
+            if (!gameHost || gameHost.state === "voting") {
+                UI.closeDialog();
+            }
         } else {
             // Client voting
             peerManager.sendToHost({
                 type: "vote",
                 votedPeerId: votedPeerId,
             });
+            UI.closeDialog();
         }
-        UI.closeDialog();
         UI.updateStatus("tool", "等待投票結果...");
     }
 
@@ -563,35 +654,43 @@
                     guess: guess,
                 }, peerManager.myPeerId);
             }
+            // 注意：不呼叫 UI.closeDialog()。
+            // handleMessage 會觸發 _resolveFakeGuess → handleGameOver，顯示結算視窗。
+            // 若這裡 closeDialog 會把結算視窗關掉。讓 handleGameOver 自己控制。
         } else {
             peerManager.sendToHost({
                 type: "fake-guess",
                 guess: guess,
             });
+            UI.closeDialog();
         }
-        UI.closeDialog();
     }
 
     function onPlayAgain() {
+        if (!peerManager.isHost) {
+            // 只有房主可以開始新遊戲；其他玩家按不到這按鈕
+            return;
+        }
+
         UI.closeDialog();
         drawingCanvas.resetCanvas();
 
-        if (peerManager.isHost) {
-            // Reset game
-            if (gameHost) gameHost.reset();
-            gameHost = null;
+        // 提醒所有玩家：進入等待房主開始新遊戲狀態
+        peerManager.broadcastToAll({ type: "new-game-wait" });
 
-            // 回到 share/lobby 對話框使用同一個簡單 API
-            UI.showRoomShare(peerManager.roomCode || "?", _hostLobbyPlayers());
-            UI.updatePlayerCount(peerManager.getPlayerCount());
-            UI.updateStatus("tool", "工具: 鉛筆");
-            UI.updateStatus("room", "房間代碼: " + (peerManager.roomCode || "?") + " (Host)");
-            UI.setCanvasEnabled(true);
-        } else {
-            UI.updateStatus("tool", "等待 Host 開始新遊戲...");
-            UI.updateStatus("room", "已連線");
-            UI.setCanvasEnabled(false);
-        }
+        // Reset game
+        if (gameHost) gameHost.reset();
+        gameHost = null;
+
+        // 回到 share/lobby 對話框
+        UI.showRoomShare(peerManager.roomCode || "?", _hostLobbyPlayers());
+        UI.updatePlayerCount(peerManager.getPlayerCount());
+        UI.updateStatus("tool", "工具: 鉛筆");
+        UI.updateStatus("room", "房間代碼: " + (peerManager.roomCode || "?") + " (Host)");
+        // 房主回到等待狀態：清空 HUD 題目/類型
+        UI.resetGamePrompt("等待房主開始遊戲", "—", "準備中");
+        UI.setCanvasEnabled(true);
+        UI.setTurn("idle", {});
     }
 
     // ================================================================

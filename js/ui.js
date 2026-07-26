@@ -32,11 +32,9 @@ const UI = {
         this._initFgBgIndicator();
         this._initToolButtons();
         this._initBrushSlider();
-        this._initMenuBar();
         this._initDialogButtons();
         this._initDoneDrawingButton();
         this._initUndoButton();
-        this._initJoinRoomButton();
     },
 
     // ================================================================
@@ -184,11 +182,6 @@ const UI = {
         });
     },
 
-    _initJoinRoomButton() {
-        // (toolbar綠色「加入房間」按鈕已移除)
-        // 房間建立/加入改由 menu 或初始 entry dialog 進入
-    },
-
     // ================================================================
     //  DONE DRAWING BUTTON
     // ================================================================
@@ -201,65 +194,6 @@ const UI = {
 
     showDoneDrawingButton(show) {
         document.getElementById("btn-done-drawing").style.display = show ? "block" : "none";
-    },
-
-    // ================================================================
-    //  MENU BAR
-    // ================================================================
-
-    _initMenuBar() {
-        // Toggle menu dropdowns
-        document.querySelectorAll(".menu-item").forEach(item => {
-            item.addEventListener("click", (e) => {
-                e.stopPropagation();
-                // Close others
-                document.querySelectorAll(".menu-item.active").forEach(m => {
-                    if (m !== item) m.classList.remove("active");
-                });
-                item.classList.toggle("active");
-            });
-        });
-
-        // Close menus on outside click
-        document.addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-        });
-
-        // Menu actions
-        document.getElementById("menu-new-room").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            this.showCreateRoomDialog();
-        });
-        document.getElementById("menu-join-room").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            this.showJoinRoomDialog();
-        });
-        document.getElementById("menu-undo").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            drawingCanvas.undo();
-        });
-        document.getElementById("menu-clear").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            drawingCanvas.clearCanvas();
-        });
-        document.getElementById("menu-rules").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            alert("🎨 Fake Artist 遊戲規則：\n\n" +
-                "1. 一位玩家是「偽藝術家」，其他是真藝術家\n" +
-                "2. 真藝術家知道題目，偽藝術家只知道類別\n" +
-                "3. 每人輪流在畫布上畫一筆，偽藝術家要假裝知道題目\n" +
-                "4. 所有人畫完後，投票猜誰是偽藝術家\n" +
-                "5. 偽藝術家被揪出 → 偽藝術家猜題目，猜對則偽藝術家贏\n" +
-                "6. 偽藝術家沒被揪出 → 偽藝術家直接獲勝");
-        });
-        document.getElementById("menu-about").addEventListener("click", () => {
-            document.querySelectorAll(".menu-item.active").forEach(m => m.classList.remove("active"));
-            alert("🎨 Fake Artist - 偽藝術家紐約行\n\n" +
-                "靈感來自 Oink Games 桌遊《エセ芸術家ニューヨークへ行く》\n" +
-                "使用 PeerJS P2P 連線技術\n" +
-                "Windows XP 小畫家風格介面\n\n" +
-                "v0.1 - Made with ❤️");
-        });
     },
 
     // ================================================================
@@ -303,7 +237,7 @@ const UI = {
 
         // ---- Room: share dialog actions ----
         document.getElementById("btn-room-start").addEventListener("click", () => {
-            this.showDialog("dlg-word-setup");
+            if (this._onStartGame) this._onStartGame();
         });
         document.getElementById("btn-room-copy").addEventListener("click", () => {
             const code = document.getElementById("share-room-id").textContent.trim();
@@ -313,11 +247,6 @@ const UI = {
             }).catch(() => {
                 prompt("手動複製房間代碼:", code);
             });
-        });
-
-        // ---- Word setup ----
-        document.getElementById("btn-confirm-word").addEventListener("click", () => {
-            if (this._onStartGame) this._onStartGame();
         });
 
         // ---- Vote ----
@@ -444,14 +373,6 @@ const UI = {
         };
     },
 
-    getWordSetupInput() {
-        return {
-            word: document.getElementById("input-word").value.trim(),
-            category: document.getElementById("input-category").value.trim(),
-            rounds: parseInt(document.getElementById("input-rounds").value),
-        };
-    },
-
     getFakeGuessInput() {
         return document.getElementById("input-fake-guess").value.trim();
     },
@@ -503,7 +424,7 @@ const UI = {
     //  GAME OVER DIALOG
     // ================================================================
 
-    showGameOver(result) {
+    showGameOver(result, isHost) {
         const body = document.getElementById("game-over-body");
         let html = "";
 
@@ -519,7 +440,7 @@ const UI = {
         if (result.fakeGuess) {
             html += `<p>偽藝術家猜了：<strong>${result.fakeGuess}</strong> — ${result.fakeCorrect ? "✅ 猜對" : "❌ 猜錯"}</p>`;
         } else if (result.fakeArtistWon && !result.fakeCorrect) {
-            html += `<p>偽藝術家沒有被揪出來，直接獲勝！</p>`;
+            html += `<p>偽藝術家沒有被揭露銓出來（平票或未被投票），直接獲勝！</p>`;
         }
 
         if (result.votes) {
@@ -530,6 +451,18 @@ const UI = {
         }
 
         body.innerHTML = html;
+
+        // 只有房主可以開始新遊戲
+        const againBtn = document.getElementById("btn-play-again");
+        if (againBtn) {
+            if (isHost) {
+                againBtn.style.display = "block";
+                againBtn.textContent = "🎮 開始新遊戲";
+            } else {
+                againBtn.style.display = "none";
+            }
+        }
+
         this.showDialog("dlg-game-over");
     },
 
@@ -541,16 +474,26 @@ const UI = {
         const list = document.getElementById("player-list");
 
         if (!players || players.length === 0) {
-            list.innerHTML = '<div class="player-entry" style="color:#808080;">等待玩家加入...</div>';
+            list.innerHTML = '<div class="player-entry" style="color:#808080;">等待玩家加入...</div>'
             return;
         }
 
         list.innerHTML = players.map(p => {
             const isTurn = p.peerId === currentTurnPeerId;
+            const isMe = !!p.isMe && !isTurn;
+            let badge = "";
+            if (isTurn) {
+                badge = `<span class="player-badge ${p.isMe ? "mine" : "other"}">${p.isMe ? "你在畫" : "正在畫"}</span>`;
+            } else if (p.hasDrawn) {
+                badge = `<span class="player-badge done">已畫</span>`;
+            } else {
+                badge = `<span class="player-badge waiting">等待</span>`;
+            }
             return `<div class="player-entry${isTurn ? " current-turn" : ""}">
                 <span class="player-dot${p.hasDrawn ? " drawn" : ""}"
                       style="background:${p.color || '#808080'}"></span>
-                ${p.name}${p.isMe ? " (你)" : ""}${isTurn ? " 🎨" : ""}
+                <span class="player-name">${p.name}${p.isMe ? " (你)" : ""}</span>
+                ${badge}
             </div>`;
         }).join("");
 
@@ -571,12 +514,6 @@ const UI = {
     updateStatus(field, text) {
         const el = document.getElementById("status-" + field);
         if (el) el.textContent = text;
-
-        // Keep the central, Gartic-style HUD in sync with the game state.
-        if (field === "tool") {
-            const prompt = document.getElementById("prompt-display");
-            if (prompt) prompt.textContent = text;
-        }
     },
 
     updateCoords(x, y) {
@@ -595,8 +532,91 @@ const UI = {
         const nameEl = document.getElementById("turn-name");
         if (indicator) indicator.style.display = "block";
         if (nameEl) nameEl.textContent = name || "-";
-        const round = document.getElementById("round-display");
-        if (round) round.textContent = name ? `輪到 ${name}` : "準備中";
+    },
+
+    // ================================================================
+    //  TURN BANNER  (大橫幅, 在畫布正上方)
+    // ----------------------------------------------------------------
+    //  state: "idle"      — 遊戲還沒開始（lobby / game over）
+    //         "awaiting" — 遊戲開始但不是我的回合（看別人畫）
+    //         "myturn"   — 輪到本玩家作畫
+    //         "voting"   — 進入投票階段
+    //         "guessing" — 偽藝術家猜題目
+    // ----------------------------------------------------------------
+    setTurn(state, info) {
+        info = info || {};
+
+        const banner = document.getElementById("turn-banner");
+        const textEl = document.getElementById("turn-banner-text");
+        const subEl  = document.getElementById("turn-banner-sub");
+        const tipEl  = document.getElementById("sidebar-tip-text");
+        if (!banner) return;
+
+        banner.setAttribute("data-state", state);
+
+        let main = info.text || "";
+        let sub  = info.sub  || "";
+        let tip  = info.tip  || "真藝術家知道題目；偽藝術家只有類別。別讓你的筆跡洩漏答案！";
+
+        if (state === "idle") {
+            if (!main) main = "等待房主開始遊戲";
+        } else if (state === "awaiting") {
+            if (!main && info.name) main = `${info.name} 正在作畫…`;
+            if (!sub && info.round) sub = info.round;
+            if (!info.tip) tip = "盯緊畫布，注意誰畫得心虛；輪到你時再下筆。";
+        } else if (state === "myturn") {
+            if (!main) main = "輪到你畫了！";
+            if (!sub && info.round) sub = "現在就到工具箱選色下筆 — 只能畫一筆";
+            if (!info.tip) tip = "畫一筆後按下方「我畫完了」結束你的回合。";
+        } else if (state === "voting") {
+            if (!main) main = "投票：誰是偽藝術家？";
+            if (!sub) sub = "看看對話框，選出可疑的人。";
+            if (!info.tip) tip = "投票時不能繼續畫，仔細回想剛剛每個人的筆跡。";
+        } else if (state === "guessing") {
+            if (!main) main = "你被揪出來了！猜猜題目";
+            if (!sub) sub = "偽藝術家只有類別可以參考。";
+            if (!info.tip) tip = "你已經被指控，請猜出完整題目才能反敗為勝。";
+        }
+
+        if (textEl) textEl.textContent = main;
+        if (subEl)  subEl.textContent  = sub;
+        if (tipEl)  tipEl.textContent  = tip;
+
+        // 同步把 menu 的 stage-hint 文字保留為狀態提示
+        const stageHint = document.getElementById("canvas-stage-hint");
+        if (stageHint) {
+            if (state === "myturn") stageHint.textContent = "★ 輪到你畫 ★";
+            else if (state === "awaiting" && info.name) stageHint.textContent = `${info.name} 正在畫`;
+            else if (state === "voting") stageHint.textContent = "投票中";
+            else if (state === "guessing") stageHint.textContent = "偽藝術家猜題目";
+            else stageHint.textContent = "輪流畫一筆，找出偽藝術家";
+        }
+
+        // 在「不是我的回合」時，淡化左側工具箱讓玩家清楚現在不能畫
+        const tb = document.getElementById("toolbox");
+        if (tb) {
+            if (state === "myturn") {
+                tb.removeAttribute("data-disabled");
+            } else {
+                tb.setAttribute("data-disabled", "true");
+            }
+        }
+    },
+
+    // 一個糖衣封裝：給目前作畫玩家用
+    updateRoleBadge(isMyTurn, turnName, roundLabel) {
+        if (isMyTurn) {
+            this.setTurn("myturn", { name: turnName, round: roundLabel });
+        } else if (turnName) {
+            this.setTurn("awaiting", { name: turnName, round: roundLabel });
+        } else {
+            this.setTurn("idle", {});
+        }
+    },
+
+    // 開始遊戲前先 reset 回 idle，避免上一局 banner 留著
+    resetTurnBanner() {
+        this.setTurn("idle", {});
     },
 
     updateRoomStatus(text) {
@@ -626,15 +646,49 @@ const UI = {
     //  SHOW PROMPT TO PLAYER
     // ================================================================
 
+    // 設定 HUD 的「題目」「類型」兩欄
+    // word = null/falsy 時表示該玩家是偽藝術家（題目隱藏）
+    // roundText = 指定右側角色徽章字樣（例如「真藝術家」/「偽藝術家」），不給則保留
+    setGamePrompt(word, category, roundText) {
+        const wordEl = document.getElementById("prompt-word-display");
+        const catEl  = document.getElementById("prompt-category-display");
+        const roundEl = document.getElementById("round-display");
+
+        if (wordEl) wordEl.textContent = word ? word : "❓ (你是偽藝術家)";
+        if (catEl)  catEl.textContent  = category || "—";
+        if (roundEl && typeof roundText === "string") roundEl.textContent = roundText;
+    },
+
+    // 還原 HUD 的「題目」「類型」兩欄（回合結束、新局等待時呼叫）
+    resetGamePrompt(wordText, categoryText, roundText) {
+        const wordEl = document.getElementById("prompt-word-display");
+        const catEl  = document.getElementById("prompt-category-display");
+        const roundEl = document.getElementById("round-display");
+        if (wordEl) wordEl.textContent = wordText || "等待房主開始遊戲";
+        if (catEl)  catEl.textContent  = categoryText || "—";
+        if (roundEl && typeof roundText === "string") roundEl.textContent = roundText;
+    },
+
     showYourPrompt(word, category) {
         if (word) {
             this.updateStatus("tool", `你的題目: ${word} (${category})`);
-            const round = document.getElementById("round-display");
-            if (round) round.textContent = "真藝術家";
+            // 題目已知 → 顯示題目與類型，右側顯示真藝術家徽章
+            this.setGamePrompt(word, category, "真藝術家");
+
+            // 突顯右側 sidebar 提示，告知角色（並維持 banner）
+            const tipEl = document.getElementById("sidebar-tip-text");
+            if (tipEl) {
+                tipEl.textContent = `你是真藝術家。題目「${word}」（${category}）。輪到你時要畫得像樣！`;
+            }
         } else {
             this.updateStatus("tool", `類別: ${category} (你是偽藝術家！)`);
-            const round = document.getElementById("round-display");
-            if (round) round.textContent = "偽藝術家";
+            // 偽藝術家看不到題目，但看得到類型
+            this.setGamePrompt(null, category, "偽藝術家");
+
+            const tipEl = document.getElementById("sidebar-tip-text");
+            if (tipEl) {
+                tipEl.textContent = `你是偽藝術家！你只知道類別「${category}」。要看別人怎麼畫，假裝自己也知道題目。`;
+            }
         }
     },
 

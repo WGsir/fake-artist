@@ -24,41 +24,6 @@
             </div>
         </div>
 
-        <!-- Menu Bar -->
-        <div id="menu-bar">
-            <div class="menu-item" id="menu-file">
-                檔案(<u>F</u>)
-                <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-new-room">開新房間</div>
-                    <div class="menu-drop-item" id="menu-join-room">加入房間</div>
-                    <div class="menu-separator"></div>
-                    <div class="menu-drop-item" id="menu-exit">離開房間</div>
-                </div>
-            </div>
-            <div class="menu-item" id="menu-edit">
-                編輯(<u>E</u>)
-                <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-undo">復原</div>
-                    <div class="menu-drop-item" id="menu-clear">清除畫布</div>
-                </div>
-            </div>
-            <div class="menu-item" id="menu-view">
-                檢視(<u>V</u>)
-                <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-toolbox-toggle">工具箱</div>
-                    <div class="menu-drop-item" id="menu-palette-toggle">色盤</div>
-                    <div class="menu-drop-item" id="menu-status-toggle">狀態列</div>
-                </div>
-            </div>
-            <div class="menu-item" id="menu-help">
-                說明(<u>H</u>)
-                <div class="menu-dropdown">
-                    <div class="menu-drop-item" id="menu-rules">遊戲規則</div>
-                    <div class="menu-drop-item" id="menu-about">關於</div>
-                </div>
-            </div>
-        </div>
-
         <!-- Game HUD: Gartic-style game information, rendered in an XP shell -->
         <div id="game-hud">
             <div class="brand-lockup" aria-label="Fake Artist">
@@ -67,9 +32,15 @@
                 <span class="brand-tagline">偽藝術家紐約行</span>
             </div>
             <div class="prompt-card">
-                <span class="prompt-label">本局提示</span>
-                <strong id="prompt-display">等待房主開始遊戲</strong>
-                <span id="round-display">準備中</span>
+                <div class="prompt-row">
+                    <span class="prompt-label">題目</span>
+                    <strong id="prompt-word-display">等待房主開始遊戲</strong>
+                </div>
+                <div class="prompt-row">
+                    <span class="prompt-label">類型</span>
+                    <strong id="prompt-category-display">—</strong>
+                    <span id="round-display">準備中</span>
+                </div>
             </div>
             <div class="hud-room-card">
                 <span class="hud-room-label">房間狀態</span>
@@ -146,7 +117,16 @@
                     <div class="canvas-stage-title">
                         <span class="stage-dot"></span>
                         <span>共同畫布</span>
-                        <span class="stage-hint">輪流畫一筆，找出偽藝術家</span>
+                        <span class="stage-hint" id="canvas-stage-hint">輪流畫一筆，找出偽藝術家</span>
+                    </div>
+                    <!-- Big turn banner over the canvas -->
+                    <div id="turn-banner" class="turn-banner" data-state="idle">
+                        <span class="turn-banner-icon" aria-hidden="true">✎</span>
+                        <span class="turn-banner-text" id="turn-banner-text">等待開始</span>
+                        <span class="turn-banner-sub" id="turn-banner-sub"></span>
+                        <button class="xp-btn" id="btn-done-drawing" style="display:none;">
+                            我畫玩了
+                        </button>
                     </div>
                     <div id="canvas-frame">
                         <canvas id="drawing-canvas"></canvas>
@@ -180,13 +160,11 @@
                         <span class="turn-label">目前輪到</span>
                         <strong id="turn-name">-</strong>
                     </div>
-                    <button class="xp-btn" id="btn-done-drawing" style="display:none; width:100%; margin-top:8px;">
-                        我畫完了
-                    </button>
+
                 </div>
-                <div class="sidebar-tip">
+                <div class="sidebar-tip" id="sidebar-tip">
                     <span class="tip-icon">i</span>
-                    <p>真藝術家知道題目；偽藝術家只有類別。別讓你的筆跡洩漏答案！</p>
+                    <p id="sidebar-tip-text">真藝術家知道題目；偽藝術家只有類別。別讓你的筆跡洩漏答案！</p>
                 </div>
             </div>
         </div>
@@ -210,7 +188,6 @@
         <div class="xp-dialog" id="dlg-room-entry" style="display:none;">
             <div class="dlg-title">
                 <span>Fake Artist</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body">
                 <p class="xp-label" style="margin-bottom:10px;">你想做什麼？</p>
@@ -235,7 +212,6 @@
         <div class="xp-dialog" id="dlg-room-create" style="display:none;">
             <div class="dlg-title">
                 <span>開新房間</span>
-                <button class="dlg-close" onclick="UI.backToEntry()">×</button>
             </div>
             <div class="dlg-body">
                 <label class="xp-label">你的名稱：</label><br>
@@ -247,7 +223,6 @@
                 </p>
             </div>
             <div class="dlg-buttons">
-                <button class="xp-btn" onclick="UI.backToEntry()">上一步</button>
                 <button class="xp-btn btn-primary" id="btn-room-create-confirm">建立房間</button>
             </div>
         </div>
@@ -256,7 +231,6 @@
         <div class="xp-dialog" id="dlg-room-join" style="display:none;">
             <div class="dlg-title">
                 <span>加入房間</span>
-                <button class="dlg-close" onclick="UI.backToEntry()">×</button>
             </div>
             <div class="dlg-body">
                 <label class="xp-label">房間代碼：</label><br>
@@ -270,7 +244,6 @@
                        style="width:100%; margin:4px 0 12px 0;">
             </div>
             <div class="dlg-buttons">
-                <button class="xp-btn" onclick="UI.backToEntry()">上一步</button>
                 <button class="xp-btn btn-primary" id="btn-room-join-confirm">加入房間</button>
             </div>
         </div>
@@ -279,7 +252,6 @@
         <div class="xp-dialog" id="dlg-room-share" style="display:none;">
             <div class="dlg-title">
                 <span>房間已建立</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body">
                 <div class="room-code-box">
@@ -313,38 +285,10 @@
             </div>
         </div>
 
-        <!-- Word Setup Dialog (Host only) -->
-        <div class="xp-dialog" id="dlg-word-setup" style="display:none;">
-            <div class="dlg-title">
-                <span>📝 設定題目</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
-            </div>
-            <div class="dlg-body">
-                <label class="xp-label">題目（例如：大象）</label><br>
-                <input type="text" class="xp-input" id="input-word"
-                       placeholder="輸入完整題目" style="width:100%; margin:4px 0;">
-                <br><br>
-                <label class="xp-label">類別（例如：動物）</label><br>
-                <input type="text" class="xp-input" id="input-category"
-                       placeholder="輸入類別（偽藝術家只會看到這個）" style="width:100%; margin:4px 0;">
-                <br><br>
-                <label class="xp-label">繪圖輪數：</label>
-                <select class="xp-input" id="input-rounds" style="width:100%; margin:4px 0;">
-                    <option value="1">1 輪</option>
-                    <option value="2" selected>2 輪</option>
-                </select>
-            </div>
-            <div class="dlg-buttons">
-                <button class="xp-btn btn-primary" id="btn-confirm-word">開始遊戲！</button>
-                <button class="xp-btn" onclick="UI.closeDialog()">取消</button>
-            </div>
-        </div>
-
         <!-- Vote Dialog -->
         <div class="xp-dialog" id="dlg-vote" style="display:none;">
             <div class="dlg-title">
                 <span>🗳️ 投票：誰是偽藝術家？</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body" id="vote-body">
                 <!-- Filled by JS -->
@@ -358,7 +302,6 @@
         <div class="xp-dialog" id="dlg-fake-guess" style="display:none;">
             <div class="dlg-title">
                 <span>🤔 你被揪出來了！猜猜題目是？</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body">
                 <p>大家認為你是偽藝術家！</p>
@@ -378,14 +321,12 @@
         <div class="xp-dialog" id="dlg-game-over" style="display:none;">
             <div class="dlg-title">
                 <span>🏆 遊戲結束</span>
-                <button class="dlg-close" onclick="UI.closeDialog()">×</button>
             </div>
             <div class="dlg-body" id="game-over-body">
                 <!-- Filled by JS -->
             </div>
             <div class="dlg-buttons">
-                <button class="xp-btn btn-primary" id="btn-play-again">🔄 再玩一局</button>
-                <button class="xp-btn" onclick="UI.closeDialog()">關閉</button>
+                <button class="xp-btn btn-primary" id="btn-play-again" style="display:none;">🎮 開始新遊戲</button>
             </div>
         </div>
     </div>

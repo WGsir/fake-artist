@@ -22,6 +22,7 @@ class GameHost {
         this.currentTurnPeerId = null;
         this.drawnThisRound = new Set();   // peerIds that have drawn in current round
         this.drawingOrder = [];            // order of drawing for current round
+        this.roundOrder = [];              // 第 1 輪決定的順序，後續輪沿用
 
         // ---- Voting ----
         this.votes = new Map();            // voterPeerId → votedPeerId
@@ -43,6 +44,7 @@ class GameHost {
         this.currentTurnPeerId = null;
         this.drawnThisRound.clear();
         this.drawingOrder = [];
+        this.roundOrder = [];
         this.votes.clear();
         this.fakeGuess = null;
     }
@@ -130,13 +132,22 @@ class GameHost {
         });
         this.drawnThisRound.clear();
         this.drawingOrder = [];
+        this.roundOrder = [];
         this.votes.clear();
         this.fakeGuess = null;
 
         // Pick fake artist
         this._assignFakeArtist();
 
-        // Send prompts to each player
+        // 1) 先廣播 game-start：讓所有客人端先把 HUD/畫布 reset，
+        //    之後才送 your-prompt，避免 game-start 的 reset 把剛填好的題目覆蓋成 "?"。
+        peerManager.broadcastToAll({
+            type: "game-start",
+            round: 1,
+            totalRounds: this.totalRounds,
+        });
+
+        // 2) 再送 each player 自己的 prompt（客人端依靠這個填 HUD 題目/類型）
         this.players.forEach((p, peerId) => {
             const isFake = p.role === "fake";
             const msg = {
@@ -154,16 +165,6 @@ class GameHost {
                 peerManager.sendToPeer(msg, peerId);
             }
         });
-
-        // Broadcast game start
-        peerManager.broadcastToAll({
-            type: "game-start",
-            round: 1,
-            totalRounds: this.totalRounds,
-        });
-
-        // Handle host's own prompt locally
-        // Already handled above
 
         // Start first turn
         this._advanceTurn();
@@ -192,7 +193,11 @@ class GameHost {
         );
 
         if (undrawnPlayers.length === 0) {
-            // Round complete
+            // Round complete — store first round's order for subsequent rounds
+            if (this.roundOrder.length === 0 && this.drawingOrder.length > 0) {
+                this.roundOrder = [...this.drawingOrder];
+            }
+
             this.currentRound++;
             if (this.currentRound > this.totalRounds) {
                 // All rounds done → voting
@@ -200,13 +205,14 @@ class GameHost {
                 return;
             }
 
-            // Start new round — reset drawn status
+            // Start new round — reset drawn status, but reuse round 1's order
             this.drawnThisRound.clear();
             this.drawingOrder = [];
-            const newUndrawn = [...this.players.keys()];
-
-            // Pick next player (different from last round's first if possible)
-            this._pickNextTurn(newUndrawn);
+            // 順序沿用第 1 輪（已存在於 roundOrder），不用重新隨機
+            const newOrder = this.roundOrder.length > 0
+                ? [...this.roundOrder]
+                : [...this.players.keys()];
+            this._pickNextTurn(newOrder);
         } else {
             this._pickNextTurn(undrawnPlayers);
         }
@@ -215,13 +221,26 @@ class GameHost {
     _pickNextTurn(candidates) {
         if (candidates.length === 0) return;
 
-        // Prefer someone who hasn't been first before, else random
+        // 後續輪（roundOrder 已存在）→ 嚴格按照第 1 輪順序挑下一個還未畫的人
+        if (this.currentRound > 1 && this.roundOrder.length > 0) {
+            const remaining = this.roundOrder.filter(id => candidates.includes(id));
+            if (remaining.length > 0) {
+                this._commitTurn(remaining[0]);
+                return;
+            }
+            // 若 roundOrder 與現存玩家不符（中途有人離開），fall-through
+        }
+
+        // 第 1 輪或其餘情況：避免同一人連續開場，其餘隨機
         const prevFirst = this.drawingOrder.length > 0 ? this.drawingOrder[0] : null;
         const nonFirst = candidates.filter(id => id !== prevFirst);
-
         const pool = nonFirst.length > 0 ? nonFirst : candidates;
-        const nextId = pool[Math.floor(Math.random() * pool.length)];
+        const index = Math.floor(Math.random() * pool.length);
+        const nextId = pool[index];
+        this._commitTurn(nextId);
+    }
 
+    _commitTurn(nextId) {
         this.currentTurnPeerId = nextId;
         this.drawnThisRound.add(nextId);
         this.drawingOrder.push(nextId);
@@ -364,22 +383,23 @@ class GameHost {
             if (p) p.votesReceived++;
         });
 
-        // Find player with most votes
+        // Find player(s) with the most votes
         let maxVotes = 0;
-        let accusedPeerId = null;
-        this.players.forEach((p, peerId) => {
-            if (p.votesReceived > maxVotes) {
-                maxVotes = p.votesReceived;
-                accusedPeerId = peerId;
-            }
+        this.players.forEach(p => {
+            if (p.votesReceived > maxVotes) maxVotes = p.votesReceived;
         });
 
-        // Handle ties: if multiple have same max votes, pick the first (or random)
-        const tiedPlayers = [...this.players.values()].filter(p => p.votesReceived === maxVotes);
-        if (tiedPlayers.length > 1) {
-            accusedPeerId = tiedPlayers[Math.floor(Math.random() * tiedPlayers.length)].peerId;
+        // 平票（兩人以上得最高票）或無人得票 → 偽藝術家直接獲勝
+        const tiedPlayers = [...this.players.values()]
+            .filter(p => p.votesReceived === maxVotes && maxVotes > 0);
+
+        if (tiedPlayers.length !== 1) {
+            this._broadcastVoteResults(tiedPlayers.length > 1 ? "平票" : "無人得票");
+            this._endGame(true); // 偽藝術家獲勝
+            return;
         }
 
+        const accusedPeerId = tiedPlayers[0].peerId;
         const accusedPlayer = this.players.get(accusedPeerId);
 
         // Broadcast vote results
@@ -397,11 +417,10 @@ class GameHost {
         });
 
         if (accusedPeerId === this.fakeArtistPeerId) {
-            // Fake artist caught! They get to guess the word
+            // 偽藝術家是唯一最高票 → 他要猜題目
             this.state = "fake-guessing";
 
             // Send guess prompt to fake artist only
-            const fakePlayer = this.players.get(this.fakeArtistPeerId);
             const guessMsg = {
                 type: "fake-guess-prompt",
                 category: this.category,
@@ -417,14 +436,29 @@ class GameHost {
                 peerManager.sendToPeer(guessMsg, this.fakeArtistPeerId);
             }
         } else {
-            // Wrong person accused → fake artist wins!
+            // 被指控者不是偽藝術家 → 偽藝術家獲勝
             this._endGame(true);
         }
     }
 
+    _broadcastVoteResults(accusedName) {
+        const voteResults = [...this.players.values()].map(p => ({
+            peerId: p.peerId,
+            name: p.name,
+            count: p.votesReceived,
+        }));
+        peerManager.broadcastToAll({
+            type: "vote-result",
+            accusedPeerId: null,
+            accusedName: accusedName,
+            votes: voteResults,
+            tie: true,
+        });
+    }
+
     _resolveFakeGuess() {
         const correct = this.fakeGuess === this.word;
-        this._endGame(correct); // fakeArtistWon = correct (they guessed right)
+        this._endGame(correct); // fakeArtistWon = correct (猜題正確 = 偽藝術家獲勝)
     }
 
     _endGame(fakeArtistWon) {

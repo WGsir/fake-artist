@@ -45,8 +45,18 @@ const CONFIG = {
     GAME: {
         MIN_PLAYERS: 3,
         MAX_PLAYERS: 10,
-        DRAW_ROUNDS: 2,          // 每人畫兩輪（更接近桌遊原版）
+        DRAW_ROUNDS: 2,          // 每人畫兩輪（更接近桌遊原版）— 固定 2 輪，不可調整
     },
+
+    // ---- 題庫（由系統隨機生成，玩家不可自訂） ----
+    // 每筆：{ word: 題目, category: 類別 }
+    WORD_BANK: [
+        { word: "大象",   category: "動物" },
+        { word: "飛機",   category: "交通工具" },
+        { word: "蛋糕",   category: "食物" },
+        { word: "雨傘",   category: "日常用品" },
+        { word: "金字塔", category: "建築物" },
+    ],
 
     // ---- Room Code (auto-generated pair codes) ----
     ROOM_CODE: {
@@ -85,5 +95,6 @@ Object.freeze(CONFIG.ERASER);
 Object.freeze(CONFIG.SYNC);
 Object.freeze(CONFIG.PEER);
 Object.freeze(CONFIG.GAME);
+Object.freeze(CONFIG.WORD_BANK);
 Object.freeze(CONFIG.COLOR_PALETTE);
 Object.freeze(CONFIG.ROOM_CODE);

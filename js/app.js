@@ -178,6 +178,25 @@
         return list;
     }
 
+    // 大廳階段廣播 player-list 給所有已連線玩家（gameHost 尚未建立時專用）。
+    // 遊戲進行中時 gameHost.addPlayer/removePlayer 已會自己廣播，不需走這條。
+    function _broadcastLobbyPlayerList() {
+        // 若 gameHost 已存在且非 lobby，交給 gameHost 自己廣播，避免重複
+        if (gameHost && gameHost.state !== "lobby") return;
+
+        const list = _hostActivePlayers().map(p => ({
+            peerId: p.peerId,
+            name: p.name,
+            color: p.color,
+            hasDrawn: !!p.hasDrawn,
+        }));
+        peerManager.broadcastToAll({
+            type: "player-list",
+            players: list,
+            currentTurnPeerId: gameHost ? gameHost.currentTurnPeerId : null,
+        });
+    }
+
     function onCreateRoom() {
         const { playerName } = UI.getRoomCreateInput();
         if (!playerName) {
@@ -243,12 +262,16 @@
         }
 
         if (gameHost) {
+            // gameHost 已存在（gameHost 內 addPlayer 會自己廣播 player-list）
             gameHost.addPlayer(peerId, name);
         }
         const count = peerManager.getPlayerCount();
         UI.updatePlayerCount(count);
         UI.updatePlayerList(_hostActivePlayers(),
             gameHost ? gameHost.currentTurnPeerId : null);
+        // lobby 階段 gameHost 還沒建立 → 手動廣播 player-list 給所有已連線玩家，
+        // 否則先前加入的玩家（如玩家 A）畫面上不會出現新玩家。
+        _broadcastLobbyPlayerList();
         // 同步更新 share 對話框中的玩家列表
         if (UI._isHost) {
             UI.updateLobbyPlayers(_hostLobbyPlayers());
@@ -264,6 +287,8 @@
         UI.updatePlayerCount(count);
         UI.updatePlayerList(_hostActivePlayers(),
             gameHost ? gameHost.currentTurnPeerId : null);
+        // 同 onPlayerJoin：lobby 階段缺 gameHost 時，手動廣播 player-list
+        _broadcastLobbyPlayerList();
         // 同步更新 share 對話框中的玩家列表
         if (UI._isHost) {
             UI.updateLobbyPlayers(_hostLobbyPlayers());

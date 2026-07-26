@@ -653,17 +653,28 @@ html, body {
 .vote-player-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 6px 8px;
-    margin: 3px 0;
+    padding: 9px 12px;
+    margin: 4px 0;
     background: var(--xp-btn-face);
     border: 2px solid;
     border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 600;
     text-align: left;
     border-radius: 0;
+    transition: background-color .06s, border-color .06s, color .06s;
+}
+
+.vote-player-btn .player-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,.35);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.5) inset;
 }
 
 .vote-player-btn:hover {
@@ -671,8 +682,27 @@ html, body {
     color: #FFFFFF;
 }
 
+.vote-player-btn:hover .player-dot {
+    border-color: rgba(255,255,255,.7);
+}
+
 .vote-player-btn:active {
     border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+}
+
+/* 選中狀態：XP 風格反白選中（漸層藍 + 白字 + 內凹邊框） */
+.vote-player-btn.selected,
+.vote-player-btn.selected:hover {
+    background: linear-gradient(var(--xp-menu-hover), #2a59a8);
+    color: #FFFFFF;
+    text-shadow: 1px 1px 0 #1a3a78;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,.35);
+}
+
+.vote-player-btn.selected .player-dot {
+    border-color: #FFFFFF;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.7);
 }
 
 /* ---- Scrollbar (XP style) ---- */
@@ -1173,15 +1203,16 @@ html, body {
     min-width: 0;
     padding: 0;
     overflow: auto;
-    align-items: flex-start;
+    /* align-items / justify-content 沿用前面第 358 行規則設定（center / center） */
     background: transparent;
 }
 
 .canvas-stage {
-    width: max-content;
-    min-width: 100%;
+    width: fit-content;
+    max-width: 100%;
     margin: 0 auto;
     padding: 8px;
+    box-sizing: border-box;
     background: #dceef9;
     border: 2px solid;
     border-color: #fff #4c7596 #4c7596 #fff;
@@ -1220,8 +1251,20 @@ html, body {
 
 #canvas-frame {
     margin: 7px 0;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
     border-width: 2px;
     box-shadow: 1px 1px 0 rgba(0,0,0,.25);
+}
+
+#drawing-canvas {
+    display: block;
+    /* 響應式：寬度最大 100%，高度依 4:3 比例自動縮放，pixel buffer 由 canvas.js 以內部分辨率維持 */
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 800 / 600;
+    touch-action: none;
 }
 
 #color-palette-row {
@@ -1333,34 +1376,6 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.sidebar-tip {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 8px;
-    color: #31546d;
-    line-height: 1.45;
-    background: #f7fcff;
-    border: 1px solid #91bcda;
-}
-
-.sidebar-tip p { font-size: 10px; }
-
-.tip-icon {
-    display: grid;
-    width: 15px;
-    height: 15px;
-    flex: 0 0 auto;
-    place-items: center;
-    color: #fff;
-    font-family: Georgia, serif;
-    font-size: 11px;
-    font-weight: bold;
-    background: #2574bd;
-    border: 1px solid #0d4d8f;
-    border-radius: 50%;
 }
 
 #status-bar {

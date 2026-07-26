@@ -56,11 +56,13 @@ class DrawingCanvas {
         const w = CONFIG.CANVAS.WIDTH;
         const h = CONFIG.CANVAS.HEIGHT;
 
-        // CSS display size
-        this.canvas.style.width = w + "px";
-        this.canvas.style.height = h + "px";
+        // CSS 顯示尺寸改交給 CSS 控制（max-width: 100%; height: auto），
+        // 這裡只設定 pixel buffer 與 transform。
+        // 注意：不要寫 inline style.width/style.height，否則會蓋掉 CSS 的 max-width。
+        // 在視窗寬度足夠時，canvas 仍以原始 800×600 顯示；
+        // 視窗窄時，CSS 會等比縮小，且 _getPos 用 rect.width 比例換算，繪圖對位不受影響。
 
-        // Actual pixel buffer
+        // Actual pixel buffer（內部分辨率維持 800×600 * dpr）
         this.canvas.width = w * dpr;
         this.canvas.height = h * dpr;
 

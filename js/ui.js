@@ -512,6 +512,8 @@ const UI = {
     // ================================================================
 
     updateStatus(field, text) {
+        // status-tool 與 status-room 已從版面上移除；呼叫端仍可保留，這裡靜默忽略
+        if (field === "tool" || field === "room") return;
         const el = document.getElementById("status-" + field);
         if (el) el.textContent = text;
     },
@@ -620,9 +622,7 @@ const UI = {
     },
 
     updateRoomStatus(text) {
-        const el = document.getElementById("status-room");
-        el.textContent = text;
-        el.style.color = text === "未連線" ? "#808080" : "#000000";
+        // status-room 已從版面上移除，只更新 HUD 的房間狀態欄
         const hudStatus = document.getElementById("hud-room-status");
         if (hudStatus) hudStatus.textContent = text;
     },

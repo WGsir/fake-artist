@@ -48,15 +48,10 @@ const CONFIG = {
         DRAW_ROUNDS: 2,          // 每人畫兩輪（更接近桌遊原版）— 固定 2 輪，不可調整
     },
 
-    // ---- 題庫（由系統隨機生成，玩家不可自訂） ----
-    // 每筆：{ word: 題目, category: 類別 }
-    WORD_BANK: [
-        { word: "大象",   category: "動物" },
-        { word: "飛機",   category: "交通工具" },
-        { word: "蛋糕",   category: "食物" },
-        { word: "雨傘",   category: "日常用品" },
-        { word: "金字塔", category: "建築物" },
-    ],
+    // ---- 題庫 ----
+    // 題目資料已移至 js/wordbank.js，方便獨立擴充。
+    // 這裡只是把外部定義的 WORD_BANK 陣列掛入 CONFIG 供其他模組使用。
+    WORD_BANK: window.WORD_BANK || [],
 
     // ---- Room Code (auto-generated pair codes) ----
     ROOM_CODE: {

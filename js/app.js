@@ -605,10 +605,25 @@
         }
     }
 
-    // 從題庫隨機挑一題
+    // Session 內已抽過的題目索引，避免短期內重複
+    const _usedPromptIndices = new Set();
+
+    // 從題庫隨機挑一題（本局 session 內不重複，直到整庫抽完才重置）
     function _pickRandomPrompt() {
         const bank = CONFIG.WORD_BANK;
-        return bank[Math.floor(Math.random() * bank.length)];
+        if (!bank.length) return { word: "", category: "" };
+
+        // 整庫抽完 → 清空重來，讓題目可以周而復始
+        if (_usedPromptIndices.size >= bank.length) _usedPromptIndices.clear();
+
+        // 從尚未抽過的索引中隨機挑一個
+        const remaining = [];
+        for (let i = 0; i < bank.length; i++) {
+            if (!_usedPromptIndices.has(i)) remaining.push(i);
+        }
+        const idx = remaining[Math.floor(Math.random() * remaining.length)];
+        _usedPromptIndices.add(idx);
+        return bank[idx];
     }
 
     function onDoneDrawing() {

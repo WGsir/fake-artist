@@ -327,6 +327,8 @@
     <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 
     <!-- App Scripts (order matters) -->
+    <!-- wordbank.js 必須在 config.js 之前載入（config.js 會引用 WORD_BANK 全域） -->
+    <script src="js/wordbank.js"></script>
     <script src="js/config.js"></script>
     <script src="js/canvas.js"></script>
     <script src="js/ui.js"></script>

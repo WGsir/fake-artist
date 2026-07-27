@@ -1,4 +1,4 @@
-# 🎨 Fake Artist - 偽藝術家紐約行
+# 🎨 Fake Artist
 
 A multiplayer drawing & social deduction party game inspired by the board game *"Fake Artist Goes to New York"* (エセ芸術家ニューヨークへ行く) by Oink Games.
 

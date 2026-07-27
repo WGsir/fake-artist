@@ -51,16 +51,9 @@ const UI = {
             cell.style.backgroundColor = color;
             cell.dataset.color = color;
             cell.addEventListener("click", () => {
-                // Left click = foreground, right click = background
                 drawingCanvas.setFgColor(color);
                 this._updateFgBgIndicator();
                 this._highlightSelectedColor(color, "fg");
-            });
-            cell.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-                drawingCanvas.setBgColor(color);
-                this._updateFgBgIndicator();
-                this._highlightSelectedColor(color, "bg");
             });
             paletteDiv.appendChild(cell);
         });
@@ -68,14 +61,11 @@ const UI = {
 
     _initFgBgIndicator() {
         const fgBox = document.getElementById("fg-color-box");
-        const bgBox = document.getElementById("bg-color-box");
         fgBox.style.backgroundColor = CONFIG.DEFAULT_FG;
-        bgBox.style.backgroundColor = CONFIG.DEFAULT_BG;
     },
 
     _updateFgBgIndicator() {
         document.getElementById("fg-color-box").style.backgroundColor = drawingCanvas.fgColor;
-        document.getElementById("bg-color-box").style.backgroundColor = drawingCanvas.bgColor;
     },
 
     _highlightSelectedColor(color, which) {
@@ -228,8 +218,14 @@ const UI = {
         });
 
         // ---- Room: create / join confirm ----
+        document.getElementById("btn-room-create-back").addEventListener("click", () => {
+            this.backToEntry();
+        });
         document.getElementById("btn-room-create-confirm").addEventListener("click", () => {
             if (this._onCreateRoom) this._onCreateRoom();
+        });
+        document.getElementById("btn-room-join-back").addEventListener("click", () => {
+            this.backToEntry();
         });
         document.getElementById("btn-room-join-confirm").addEventListener("click", () => {
             if (this._onJoinRoom) this._onJoinRoom();
@@ -272,7 +268,6 @@ const UI = {
         });
 
         // ---- Custom color (palette) ----
-        this._customColorTarget = "fg";   // 預設選擇前景色
         document.getElementById("btn-custom-color").addEventListener("click", () => {
             this.showCustomColorDialog();
         });
@@ -284,11 +279,6 @@ const UI = {
         });
         document.getElementById("custom-color-hex").addEventListener("input", () => {
             this._syncCustomColorFromHex();
-        });
-        document.querySelectorAll(".color-target-tab").forEach(tab => {
-            tab.addEventListener("click", () => {
-                this._setCustomColorTarget(tab.dataset.target);
-            });
         });
         document.getElementById("btn-confirm-custom-color").addEventListener("click", () => {
             this._applyCustomColor();
@@ -612,16 +602,6 @@ const UI = {
         if (subEl)  subEl.textContent  = sub;
         if (tipEl)  tipEl.textContent  = tip;
 
-        // 同步把 menu 的 stage-hint 文字保留為狀態提示
-        const stageHint = document.getElementById("canvas-stage-hint");
-        if (stageHint) {
-            if (state === "myturn") stageHint.textContent = "★ 輪到你畫 ★";
-            else if (state === "awaiting" && info.name) stageHint.textContent = `${info.name} 正在畫`;
-            else if (state === "voting") stageHint.textContent = "投票中";
-            else if (state === "guessing") stageHint.textContent = "偽藝術家猜題目";
-            else stageHint.textContent = "輪流畫一筆，找出偽藝術家";
-        }
-
         // 在「不是我的回合」時，淡化左側工具箱讓玩家清楚現在不能畫
         const tb = document.getElementById("toolbox");
         if (tb) {
@@ -762,31 +742,11 @@ const UI = {
 
     // 開啟調色盤視窗。開啟時以目前的前景色作為初始值。
     showCustomColorDialog() {
-        this._customColorTarget = "fg";
         const initial = this._normalizeHex(drawingCanvas.fgColor) || "#000000";
         document.getElementById("custom-color-input").value = initial;
         document.getElementById("custom-color-hex").value = initial.toUpperCase();
-        this._setCustomColorTargetTabs(this._customColorTarget);
         this._refreshCustomColorPreview(initial);
         this.showDialog("dlg-custom-color");
-    },
-
-    // 切換調色盤要設定的目標：「前景」或「背景」。
-    _setCustomColorTarget(target) {
-        this._customColorTarget = target;
-        // 切換時將該目標目前的顏色帶入調色盤，方便玩家在現有顏色上微調。
-        const current = target === "fg" ? drawingCanvas.fgColor : drawingCanvas.bgColor;
-        const hex = this._normalizeHex(current) || "#000000";
-        document.getElementById("custom-color-input").value = hex;
-        document.getElementById("custom-color-hex").value = hex.toUpperCase();
-        this._setCustomColorTargetTabs(target);
-        this._refreshCustomColorPreview(hex);
-    },
-
-    _setCustomColorTargetTabs(target) {
-        document.querySelectorAll(".color-target-tab").forEach(t => {
-            t.classList.toggle("active", t.dataset.target === target);
-        });
     },
 
     // 當原生 color input 變動時，同步 hex 文字框與預覽方塊。
@@ -812,7 +772,7 @@ const UI = {
         if (preview) preview.style.backgroundColor = hex;
     },
 
-    // 套用目前選好的自訂顏色到前景或背景，並關閉視窗。
+    // 套用目前選好的自訂顏色到前景，並關閉視窗。
     _applyCustomColor() {
         const hexEl = document.getElementById("custom-color-hex");
         const hex = this._normalizeHex(hexEl.value);
@@ -820,14 +780,10 @@ const UI = {
             hexEl.focus();
             return;
         }
-        if (this._customColorTarget === "bg") {
-            drawingCanvas.setBgColor(hex);
-        } else {
-            drawingCanvas.setFgColor(hex);
-        }
+        drawingCanvas.setFgColor(hex);
         this._updateFgBgIndicator();
         // 自訂顏色若與色盤內建顏色相符會高亮對應格子，否則清除高亮。
-        this._highlightSelectedColor(hex, this._customColorTarget);
+        this._highlightSelectedColor(hex, "fg");
         this.closeDialog();
     },
 

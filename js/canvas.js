@@ -12,7 +12,6 @@ class DrawingCanvas {
         // ---- State ----
         this.tool = "pen";          // pen | eraser | fill | picker
         this.fgColor = CONFIG.DEFAULT_FG;
-        this.bgColor = CONFIG.DEFAULT_BG;
         this.brushSize = CONFIG.BRUSH.DEFAULT_SIZE;
         this.eraserSize = CONFIG.ERASER.DEFAULT_SIZE;
 
@@ -72,7 +71,7 @@ class DrawingCanvas {
         // Canvas defaults
         this.ctx.lineCap = "round";
         this.ctx.lineJoin = "round";
-        this.ctx.fillStyle = this.bgColor;
+        this.ctx.fillStyle = CONFIG.CANVAS_BG;
         this.ctx.fillRect(0, 0, w, h);
 
         // Store DPR for later
@@ -109,10 +108,6 @@ class DrawingCanvas {
         if (this.tool !== "eraser") {
             this.ctx.strokeStyle = color;
         }
-    }
-
-    setBgColor(color) {
-        this.bgColor = color;
     }
 
     setBrushSize(size) {
@@ -655,7 +650,7 @@ class DrawingCanvas {
     //  CLEAR
     // ================================================================
 
-    clearCanvas({ color = this.bgColor, notify = true } = {}) {
+    clearCanvas({ color = CONFIG.CANVAS_BG, notify = true } = {}) {
         this.ctx.globalCompositeOperation = "source-over";
         this.ctx.fillStyle = color;
         this.ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);

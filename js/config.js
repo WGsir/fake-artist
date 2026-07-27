@@ -77,9 +77,10 @@ const CONFIG = {
 
     COLORS_PER_ROW: 7,
 
-    // ---- 預設前景/背景色 ----
+    // ---- 預設前景色 ----
     DEFAULT_FG: "#000000",
-    DEFAULT_BG: "#FFFFFF",
+    // 畫布背景固定為白色（不再提供背景色功能）
+    CANVAS_BG: "#FFFFFF",
 };
 
 // Freeze to prevent accidental mutation

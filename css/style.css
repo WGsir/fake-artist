@@ -456,6 +456,79 @@ html, body {
     justify-content: flex-start;
 }
 
+/* 調色盤按鈕：位於色盤右側，開啟自訂顏色視窗 */
+.custom-color-btn {
+    margin-left: auto;
+    min-width: 70px;
+    padding: 3px 10px;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+/* 調色盤視窗內部樣式 */
+#custom-color-body {
+    text-align: left;
+}
+
+.custom-color-target-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.color-target-tab {
+    padding: 4px 14px;
+    border: 2px solid;
+    border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
+    background: var(--xp-btn-face);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+}
+
+.color-target-tab.active {
+    border-color: var(--xp-btn-dark) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-dark);
+    background: #C8C2BC;
+    font-weight: bold;
+}
+
+.color-target-tab:focus {
+    outline: 1px dotted #000;
+    outline-offset: -3px;
+}
+
+#custom-color-input {
+    width: 100%;
+    height: 36px;
+    padding: 2px;
+    border: 2px solid;
+    border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
+    background: #FFFFFF;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.custom-color-hex-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+#custom-color-hex {
+    flex: 0 0 90px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.custom-color-preview-box {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #000;
+    background: #000000;
+    flex-shrink: 0;
+}
+
 .color-cell {
     width: 18px;
     height: 18px;

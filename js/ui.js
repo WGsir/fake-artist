@@ -265,6 +265,34 @@ const UI = {
         document.getElementById("btn-play-again").addEventListener("click", () => {
             if (this._onPlayAgain) this._onPlayAgain();
         });
+
+        // ---- Your prompt / role reveal ----
+        document.getElementById("btn-confirm-prompt").addEventListener("click", () => {
+            this.closeDialog();
+        });
+
+        // ---- Custom color (palette) ----
+        this._customColorTarget = "fg";   // 預設選擇前景色
+        document.getElementById("btn-custom-color").addEventListener("click", () => {
+            this.showCustomColorDialog();
+        });
+        document.getElementById("btn-cancel-custom-color").addEventListener("click", () => {
+            this.closeDialog();
+        });
+        document.getElementById("custom-color-input").addEventListener("input", () => {
+            this._syncCustomColorFromNative();
+        });
+        document.getElementById("custom-color-hex").addEventListener("input", () => {
+            this._syncCustomColorFromHex();
+        });
+        document.querySelectorAll(".color-target-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                this._setCustomColorTarget(tab.dataset.target);
+            });
+        });
+        document.getElementById("btn-confirm-custom-color").addEventListener("click", () => {
+            this._applyCustomColor();
+        });
     },
 
     _flashCopyButton() {
@@ -669,7 +697,40 @@ const UI = {
         if (roundEl && typeof roundText === "string") roundEl.textContent = roundText;
     },
 
-    showYourPrompt(word, category) {
+    // 彈出題目/身分視窗，告知玩家的角色與題目資訊。
+    // msg = { word, category, wordLength, isFake }
+    showYourPromptDialog(msg) {
+        const body = document.getElementById("your-prompt-body");
+        const titleEl = document.getElementById("your-prompt-title");
+        let html = "";
+
+        if (msg.isFake) {
+            // 偽藝術家：看不到題目，僅知道類別與字數
+            if (titleEl) titleEl.textContent = "🎭 你是偽藝術家！";
+            html += `<p style="font-size:13px; font-weight:bold; color:#CC0000; text-align:center; margin:6px 0 12px 0;">🎭 你是偽藝術家</p>`;
+            html += `<p>你不知道題目是什麼，但你知道：</p>`;
+            html += `<p>　• 類別：<strong>${msg.category || "—"}</strong></p>`;
+            html += `<p>　• 題目字數：<strong>${msg.wordLength || "?"}</strong> 個字</p>`;
+            html += `<p style="color:#808080; margin-top:8px;">先觀察別人怎麼畫，假裝自己也知道題目，別被大家識破！</p>`;
+        } else {
+            // 真藝術家：顯示完整題目
+            if (titleEl) titleEl.textContent = "🎨 你的題目";
+            html += `<p style="font-size:13px; font-weight:bold; color:#008000; text-align:center; margin:6px 0 12px 0;">🎨 你是真藝術家</p>`;
+            html += `<p>類別：<strong>${msg.category || "—"}</strong></p>`;
+            html += `<p style="font-size:16px; text-align:center; margin:10px 0;">題目：<strong style="font-size:18px;">${msg.word || "?"}</strong></p>`;
+            html += `<p style="color:#808080; margin-top:8px;">輪到你時，要畫得像樣一點！小心別讓偽藝術家混過關。</p>`;
+        }
+
+        body.innerHTML = html;
+        this.showDialog("dlg-your-prompt");
+    },
+
+    // 接收完整 your-prompt 訊息：更新 HUD/狀態列/sidebar，並彈出身分視窗。
+    // msg = { word, category, wordLength, isFake }
+    showYourPrompt(msg) {
+        const word = msg.word;
+        const category = msg.category;
+
         if (word) {
             this.updateStatus("tool", `你的題目: ${word} (${category})`);
             // 題目已知 → 顯示題目與類型，右側顯示真藝術家徽章
@@ -690,6 +751,96 @@ const UI = {
                 tipEl.textContent = `你是偽藝術家！你只知道類別「${category}」。要看別人怎麼畫，假裝自己也知道題目。`;
             }
         }
+
+        // 彈出題目/身分視窗，讓玩家知道自己的身分
+        this.showYourPromptDialog(msg);
+    },
+
+    // ================================================================
+    //  CUSTOM COLOR DIALOG (調色盤)
+    // ================================================================
+
+    // 開啟調色盤視窗。開啟時以目前的前景色作為初始值。
+    showCustomColorDialog() {
+        this._customColorTarget = "fg";
+        const initial = this._normalizeHex(drawingCanvas.fgColor) || "#000000";
+        document.getElementById("custom-color-input").value = initial;
+        document.getElementById("custom-color-hex").value = initial.toUpperCase();
+        this._setCustomColorTargetTabs(this._customColorTarget);
+        this._refreshCustomColorPreview(initial);
+        this.showDialog("dlg-custom-color");
+    },
+
+    // 切換調色盤要設定的目標：「前景」或「背景」。
+    _setCustomColorTarget(target) {
+        this._customColorTarget = target;
+        // 切換時將該目標目前的顏色帶入調色盤，方便玩家在現有顏色上微調。
+        const current = target === "fg" ? drawingCanvas.fgColor : drawingCanvas.bgColor;
+        const hex = this._normalizeHex(current) || "#000000";
+        document.getElementById("custom-color-input").value = hex;
+        document.getElementById("custom-color-hex").value = hex.toUpperCase();
+        this._setCustomColorTargetTabs(target);
+        this._refreshCustomColorPreview(hex);
+    },
+
+    _setCustomColorTargetTabs(target) {
+        document.querySelectorAll(".color-target-tab").forEach(t => {
+            t.classList.toggle("active", t.dataset.target === target);
+        });
+    },
+
+    // 當原生 color input 變動時，同步 hex 文字框與預覽方塊。
+    _syncCustomColorFromNative() {
+        const native = document.getElementById("custom-color-input");
+        const hex = this._normalizeHex(native.value);
+        if (!hex) return;
+        document.getElementById("custom-color-hex").value = hex.toUpperCase();
+        this._refreshCustomColorPreview(hex);
+    },
+
+    // 當 hex 文字框變動時，同步原生 color input 與預覽方塊。
+    _syncCustomColorFromHex() {
+        const hexEl = document.getElementById("custom-color-hex");
+        const hex = this._normalizeHex(hexEl.value);
+        if (!hex) return;
+        document.getElementById("custom-color-input").value = hex;
+        this._refreshCustomColorPreview(hex);
+    },
+
+    _refreshCustomColorPreview(hex) {
+        const preview = document.querySelector(".custom-color-preview-box");
+        if (preview) preview.style.backgroundColor = hex;
+    },
+
+    // 套用目前選好的自訂顏色到前景或背景，並關閉視窗。
+    _applyCustomColor() {
+        const hexEl = document.getElementById("custom-color-hex");
+        const hex = this._normalizeHex(hexEl.value);
+        if (!hex) {
+            hexEl.focus();
+            return;
+        }
+        if (this._customColorTarget === "bg") {
+            drawingCanvas.setBgColor(hex);
+        } else {
+            drawingCanvas.setFgColor(hex);
+        }
+        this._updateFgBgIndicator();
+        // 自訂顏色若與色盤內建顏色相符會高亮對應格子，否則清除高亮。
+        this._highlightSelectedColor(hex, this._customColorTarget);
+        this.closeDialog();
+    },
+
+    // 將輸入值正規化為 #RRGGBB 格式；回傳 null 表示格式無效。
+    _normalizeHex(value) {
+        if (!value) return null;
+        let v = String(value).trim().toUpperCase();
+        if (!v.startsWith("#")) v = "#" + v;
+        if (/^#[0-9A-F]{3}$/.test(v)) {
+            v = "#" + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+        }
+        if (!/^#[0-9A-F]{6}$/.test(v)) return null;
+        return v;
     },
 
 };

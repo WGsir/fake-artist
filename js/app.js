@@ -483,7 +483,7 @@
     // ================================================================
 
     function handleGamePrompt(msg) {
-        UI.showYourPrompt(msg.word, msg.category);
+        UI.showYourPrompt(msg);
         UI.updateStatus("room",
             msg.isFake
                 ? "⚠️ 你是偽藝術家！"

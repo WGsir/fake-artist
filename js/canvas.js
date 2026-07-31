@@ -43,6 +43,7 @@ class DrawingCanvas {
         // ---- Init ----
         this._initCanvas();
         this._initEvents();
+        this._createCursor(); // brush size cursor ring
         this._saveState(); // initial blank snapshot
     }
 
@@ -85,7 +86,77 @@ class DrawingCanvas {
         this.canvas.addEventListener("pointermove", this._onPointerMove.bind(this));
         this.canvas.addEventListener("pointerup", this._onPointerUp.bind(this));
         this.canvas.addEventListener("pointercancel", this._onPointerUp.bind(this));
-        this.canvas.addEventListener("pointerleave", this._onPointerUp.bind(this));
+        this.canvas.addEventListener("pointerenter", this._onPointerEnter.bind(this));
+        this.canvas.addEventListener("pointerleave", this._onPointerLeave.bind(this));
+    }
+
+    // ================================================================
+    //  BRUSH SIZE CURSOR RING
+    //  在畫布上疊一個圓環，直徑 = 目前筆刷/橡皮擦大小，
+    //  讓使用者在落筆前就知道畫下去的大小。
+    // ================================================================
+
+    _createCursor() {
+        // 複用 index.html 中的 #brush-cursor 元素；若不存在（動態建立）才新增
+        let el = document.getElementById("brush-cursor");
+        if (!el) {
+            el = document.createElement("div");
+            el.id = "brush-cursor";
+            this.frame.appendChild(el);
+        }
+        this.cursorEl = el;
+        this._refreshCursorVisible();
+    }
+
+    _refreshCursorVisible() {
+        if (!this.cursorEl) return;
+        const show = this.tool === "pen" || this.tool === "eraser";
+        this.cursorEl.style.display = show ? "block" : "none";
+        this.cursorEl.classList.toggle("eraser", this.tool === "eraser");
+        if (show) this._updateCursorSize();
+    }
+
+    // 圓環直徑 = 筆刷大小 × 畫布顯示縮放比例（canvas 可能被 CSS 縮小）
+    _updateCursorSize() {
+        if (!this.cursorEl || this.cursorEl.style.display === "none") return;
+        const rect = this.canvas.getBoundingClientRect();
+        const scale = rect.width / this.cssWidth;
+        const size = Math.max(this.getCurrentSize() * scale, 2);
+        this.cursorEl.style.width = size + "px";
+        this.cursorEl.style.height = size + "px";
+    }
+
+    // 圓環位置以 canvas-frame 的內容盒（padding edge，不含邊框）為基準；
+    // 每次移動一併重算尺寸，視窗縮放後立即校正
+    _updateCursorPos(e) {
+        if (!this.cursorEl || this.cursorEl.style.display === "none") return;
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const scale = canvasRect.width / this.cssWidth;
+        const size = Math.max(this.getCurrentSize() * scale, 2);
+        this.cursorEl.style.width = size + "px";
+        this.cursorEl.style.height = size + "px";
+
+        const frameRect = this.frame.getBoundingClientRect();
+        const cs = getComputedStyle(this.frame);
+        const ox = frameRect.left + parseFloat(cs.borderLeftWidth);
+        const oy = frameRect.top + parseFloat(cs.borderTopWidth);
+        this.cursorEl.style.left = (e.clientX - ox) + "px";
+        this.cursorEl.style.top = (e.clientY - oy) + "px";
+    }
+
+    // 滑鼠進入畫布：若目前工具是筆/橡皮擦則重新顯示圓環
+    _onPointerEnter() {
+        this._refreshCursorVisible();
+    }
+
+    _onPointerLeave(e) {
+        // 離開畫布：隱藏游標環，並沿用舊行為結束進行中的筆畫
+        this._hideCursor();
+        this._onPointerUp(e);
+    }
+
+    _hideCursor() {
+        if (this.cursorEl) this.cursorEl.style.display = "none";
     }
 
     // ================================================================
@@ -101,6 +172,7 @@ class DrawingCanvas {
             picker: "crosshair",
         };
         this.canvas.style.cursor = cursors[tool] || "crosshair";
+        this._refreshCursorVisible();
     }
 
     setFgColor(color) {
@@ -115,6 +187,7 @@ class DrawingCanvas {
         if (this.tool !== "eraser") {
             this.ctx.lineWidth = size;
         }
+        this._updateCursorSize();
     }
 
     setEraserSize(size) {
@@ -122,6 +195,7 @@ class DrawingCanvas {
         if (this.tool === "eraser") {
             this.ctx.lineWidth = size;
         }
+        this._updateCursorSize();
     }
 
     getCurrentSize() {
@@ -144,6 +218,7 @@ class DrawingCanvas {
         if (e.button !== undefined && e.button !== 0) return; // left button only
 
         const pos = this._getPos(e);
+        this._updateCursorPos(e);
 
         if (this.tool === "fill") {
             this._floodFill(pos);
@@ -185,6 +260,9 @@ class DrawingCanvas {
     }
 
     _onPointerMove(e) {
+        // Update brush size cursor ring position
+        this._updateCursorPos(e);
+
         // Update status bar coords
         const pos = this._getPos(e);
         if (typeof UI !== "undefined" && UI.updateCoords) {

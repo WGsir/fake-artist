@@ -373,6 +373,7 @@ html, body {
 }
 
 #canvas-frame {
+    position: relative;
     border: 2px solid;
     border-color: var(--xp-btn-shadow) var(--xp-btn-highlight) var(--xp-btn-highlight) var(--xp-btn-shadow);
     background: var(--xp-canvas-bg);
@@ -384,6 +385,27 @@ html, body {
     display: block;
     cursor: crosshair;
     touch-action: none;
+}
+
+/* Brush size cursor ring — 跟隨滑鼠的圓環，顯示筆刷/橡皮擦實際大小 */
+#brush-cursor {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 5;
+    box-sizing: border-box;
+    border: 1.5px solid #000000;
+    border-radius: 50%;
+    background: transparent;
+    /* 白描邊讓圓環在深色筆跡上也清晰可見 */
+    box-shadow: 0 0 0 1px #FFFFFF, 0 0 2px rgba(0,0,0,0.5);
+}
+
+#brush-cursor.eraser {
+    background: rgba(255, 255, 255, 0.72);
 }
 
 /* ---- Right Panel (Player list) ---- */
@@ -1214,31 +1236,33 @@ html, body {
 #brush-size-box {
     display: grid;
     justify-content: center;
+    justify-items: center;
     gap: 4px;
     padding: 4px;
 }
 
+/* 垂直排版：預覽圓點在上、直式滑桿在下 */
 #brush-size-preview {
-    width: 38px;
-    height: 25px;
+    width: 32px;
+    height: 32px;
 }
 
 #brush-size-slider {
-    width: 38px;
-    height: 48px;
-    writing-mode: horizontal-tb;
-    direction: ltr;
+    width: 14px;
+    height: 56px;
+    writing-mode: vertical-lr;
+    direction: rtl;
 }
 
 #brush-size-slider::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 8px;
+    width: 8px;
+    height: 100%;
 }
 
 #brush-size-slider::-webkit-slider-thumb {
-    width: 10px;
-    height: 14px;
-    margin-top: -4px;
+    width: 14px;
+    height: 10px;
+    margin-left: -4px;
 }
 
 #canvas-area {

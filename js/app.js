@@ -583,9 +583,13 @@
         // 蓋成正確狀態（例如房主是第一個作畫 → myturn）。若 reset 放在 startGame 之後
         // 會把剛剛設好的 myturn banner 覆蓋回 idle，造成 banner 顯示錯誤。
         UI.resetTurnBanner();
+        // 先關閉大廳分享視窗，再啟動遊戲。注意順序：
+        // gameHost.startGame 會同步為房主彈出「你的題目」身分視窗；
+        // 若在 startGame 之後才呼叫 closeDialog()，會把剛彈出的題目視窗一起關掉，
+        // 導致房主看不到題目視窗（視窗開了又立刻被關，畫面上根本不會出現）。
+        UI.closeDialog();
         const started = gameHost.startGame(word, category, rounds);
         if (started) {
-            UI.closeDialog();
             drawingCanvas.resetCanvas();
             // 注意：不強制 setCanvasEnabled(false)。
             // gameHost.startGame 已透過 turn-change/onMyTurn 把「輪到」的玩家（含房主）啟用。
@@ -601,6 +605,8 @@
             UI.setGamePrompt(word, category, "遊戲中");
             UI.updateStatus("room", `遊戲中 | 題目已隨機分配 | 類別: ${category}`);
         } else {
+            // 極少數失敗情形（如人數不足）：恢復大廳分享視窗，方便房主再試
+            UI.showDialog("dlg-room-share");
             alert("無法開始遊戲，請稍候再試。");
         }
     }

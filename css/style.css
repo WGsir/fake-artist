@@ -836,15 +836,8 @@ html, body {
 }
 
 .room-choice-btn:hover .room-choice-title,
-.room-choice-btn:hover .room-choice-desc,
-.room-choice-btn:hover .room-choice-icon {
+.room-choice-btn:hover .room-choice-desc {
     color: #FFFFFF;
-}
-
-.room-choice-icon {
-    font-size: 22px;
-    line-height: 1;
-    color: #000000;
 }
 
 .room-choice-text {

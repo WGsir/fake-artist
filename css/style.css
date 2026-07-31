@@ -982,11 +982,12 @@ html, body {
 html, body {
     min-width: 960px;
     overflow: auto;
+    /* Windows XP Bliss 桌布（簡約重繪版）當背景；
+       圖片載入失敗時退回下方的天空漸層 */
     background:
-        radial-gradient(circle at 18% 12%, rgba(255,255,255,.65) 0 2px, transparent 2.5px),
-        radial-gradient(circle at 76% 78%, rgba(255,255,255,.34) 0 2px, transparent 2.5px),
+        url("../images/background.png") center / cover no-repeat fixed,
         linear-gradient(180deg, #b9e1ff 0, var(--game-sky) 46%, var(--game-sky-deep) 100%);
-    background-size: 31px 31px, 47px 47px, auto;
+    background-size: cover, auto;
     color: #15253c;
 }
 

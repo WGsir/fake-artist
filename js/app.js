@@ -602,8 +602,16 @@
             UI.updatePlayerList(_hostActivePlayers(),
                 gameHost ? gameHost.currentTurnPeerId : null);
             // 房主也在 HUD 顯示本局題目/類型（房主題目 caller 還沒至 setGamePrompt，這裡先填）
-            UI.setGamePrompt(word, category, "遊戲中");
-            UI.updateStatus("room", `遊戲中 | 題目已隨機分配 | 類別: ${category}`);
+            // 注意：若房主剛好是偽藝術家，startGame 內部已把 HUD 設成「❓ 偽藝術家」，
+            // 這裡不能再用完整題目覆寫，否則房主會偷看到題目。
+            const hostPlayer = gameHost ? gameHost.players.get(peerManager.myPeerId) : null;
+            const hostIsFake = !!hostPlayer && hostPlayer.role === "fake";
+            UI.setGamePrompt(hostIsFake ? null : word, category,
+                hostIsFake ? "偽藝術家" : "遊戲中");
+            UI.updateStatus("room",
+                hostIsFake
+                    ? `遊戲中 | 你是偽藝術家 | 類別: ${category}`
+                    : `遊戲中 | 題目已隨機分配 | 類別: ${category}`);
         } else {
             // 極少數失敗情形（如人數不足）：恢復大廳分享視窗，方便房主再試
             UI.showDialog("dlg-room-share");

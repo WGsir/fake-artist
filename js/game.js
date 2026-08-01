@@ -341,6 +341,10 @@ class GameHost {
                 this._resolveFakeGuess();
                 break;
 
+            case "chat":
+                // 聊天訊息由 app.js 負責中繼與顯示（與遊戲狀態無關）
+                break;
+
             default:
                 console.warn("[Game] Unknown message type:", msg.type);
         }

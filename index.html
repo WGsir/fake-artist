@@ -112,6 +112,9 @@
 
             <!-- Canvas Area -->
             <div id="canvas-area">
+                <!-- 捲動容器：block 佈局才有正常的 XP 單按鈕捲軸（flex/grid 捲動容器
+                     在 Chrome 會渲染成頂部雙 ▲）。置中由 #canvas-area 的 flex 處理 -->
+                <div class="canvas-scroll">
                 <div class="canvas-stage">
                     <!-- Big turn banner over the canvas -->
                     <div id="turn-banner" class="turn-banner" data-state="idle">
@@ -138,6 +141,7 @@
                                 type="button" title="自訂顏色（調色盤）">🎨 調色盤</button>
                     </div>
                 </div>
+                </div>
             </div>
 
             <!-- Right Panel (Player list) -->
@@ -157,6 +161,21 @@
                         <strong id="turn-name">-</strong>
                     </div>
 
+                </div>
+
+                <!-- Chat Window (below player list) -->
+                <div class="sidebar-window" id="chat-window">
+                    <div class="panel-title">
+                        <span>聊天室</span>
+                    </div>
+                    <div id="chat-messages">
+                        <div class="chat-system">尚未連線，無法聊天。</div>
+                    </div>
+                    <div id="chat-input-row">
+                        <input type="text" class="xp-input" id="chat-input" maxlength="200"
+                               placeholder="輸入訊息..." disabled>
+                        <button class="xp-btn" id="btn-chat-send" type="button" disabled>送出</button>
+                    </div>
                 </div>
             </div>
         </div>

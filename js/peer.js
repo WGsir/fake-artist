@@ -17,6 +17,9 @@ class PeerManager {
         this.connections = new Map();
         this.hostConn = null;
 
+        // Host only: 聊天歷史緩衝（welcome 時送給新加入/重連的玩家）
+        this.chatHistory = [];
+
         // Callbacks (set by app.js)
         this.onPlayerJoin = null;       // (peerId, name) — Host only
         this.onPlayerLeave = null;      // (peerId) — Host only
@@ -82,6 +85,7 @@ class PeerManager {
                 type: "welcome",
                 hostName: this.myName,
                 players: this.getPlayerList(),
+                chatHistory: this.chatHistory || [],
             });
         });
 
@@ -92,7 +96,7 @@ class PeerManager {
         conn.on("close", () => {
             console.log("[Peer] Client disconnected:", clientPeerId);
             this.connections.delete(clientPeerId);
-            if (this.onPlayerLeave) this.onPlayerLeave(clientPeerId);
+            if (this.onPlayerLeave) this.onPlayerLeave(clientPeerId, clientName);
         });
 
         conn.on("error", (err) => {

@@ -17,6 +17,7 @@ const UI = {
     _onVote: null,
     _onFakeGuess: null,
     _onPlayAgain: null,
+    _onChatSend: null,
 
     // ---- Current UI state ----
     _isHost: false,
@@ -35,6 +36,7 @@ const UI = {
         this._initDialogButtons();
         this._initDoneDrawingButton();
         this._initUndoButton();
+        this._initChat();
     },
 
     // ================================================================
@@ -552,6 +554,101 @@ const UI = {
         const nameEl = document.getElementById("turn-name");
         if (indicator) indicator.style.display = "block";
         if (nameEl) nameEl.textContent = name || "-";
+    },
+
+    // ================================================================
+    //  CHAT
+    // ================================================================
+
+    _initChat() {
+        const input = document.getElementById("chat-input");
+        const sendBtn = document.getElementById("btn-chat-send");
+        if (!input || !sendBtn) return;
+
+        const doSend = () => {
+            const text = input.value.trim();
+            if (!text) return;
+            if (this._onChatSend) this._onChatSend(text);
+            input.value = "";
+            input.focus();
+        };
+
+        sendBtn.addEventListener("click", doSend);
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                doSend();
+            }
+        });
+    },
+
+    /** 新增一則玩家訊息。opts: { isMe, color } */
+    addChatMessage(name, text, opts) {
+        opts = opts || {};
+        const box = document.getElementById("chat-messages");
+        if (!box) return;
+
+        const row = document.createElement("div");
+        row.className = "chat-msg " + (opts.isMe ? "me" : "other");
+        const nameEl = document.createElement("span");
+        nameEl.className = "chat-name";
+        nameEl.textContent = (opts.isMe ? "你" : name) + ": ";
+        if (opts.color) nameEl.style.color = opts.color;
+        const textEl = document.createElement("span");
+        textEl.textContent = text;
+        row.appendChild(nameEl);
+        row.appendChild(textEl);
+        box.appendChild(row);
+        this._capChatMessages();
+        this._scrollChatToBottom();
+    },
+
+    /** 新增一則系統訊息（加入/離開/斷線等） */
+    addChatSystem(text) {
+        const box = document.getElementById("chat-messages");
+        if (!box) return;
+        const row = document.createElement("div");
+        row.className = "chat-system";
+        row.textContent = text;
+        box.appendChild(row);
+        this._capChatMessages();
+        this._scrollChatToBottom();
+    },
+
+    /** 清空並重繪歷史訊息（welcome 時由 client 端呼叫） */
+    renderChatHistory(history) {
+        const box = document.getElementById("chat-messages");
+        if (!box) return;
+        box.innerHTML = "";
+        (history || []).forEach(m => {
+            this.addChatMessage(m.name, m.text, {
+                isMe: m.peerId === peerManager.myPeerId,
+            });
+        });
+    },
+
+    clearChat() {
+        const box = document.getElementById("chat-messages");
+        if (box) box.innerHTML = "";
+    },
+
+    setChatEnabled(enabled) {
+        const input = document.getElementById("chat-input");
+        const sendBtn = document.getElementById("btn-chat-send");
+        if (input) input.disabled = !enabled;
+        if (sendBtn) sendBtn.disabled = !enabled;
+    },
+
+    _capChatMessages() {
+        const box = document.getElementById("chat-messages");
+        while (box.childElementCount > 100) {
+            box.removeChild(box.firstChild);
+        }
+    },
+
+    _scrollChatToBottom() {
+        const box = document.getElementById("chat-messages");
+        if (box) box.scrollTop = box.scrollHeight;
     },
 
     // ================================================================

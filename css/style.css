@@ -369,7 +369,9 @@ html, body {
     background: var(--xp-border);
     padding: 8px;
     position: relative;
-    overflow: auto;
+    /* 捲動由內層 .canvas-scroll 負責（block 佈局捲軸才正常）；
+       這裡不能捲動，否則 flex 捲動容器在 Chrome 會出現頂部雙 ▲ */
+    overflow: hidden;
 }
 
 #canvas-frame {
@@ -781,19 +783,66 @@ html, body {
     border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
 }
 
+::-webkit-scrollbar-thumb:hover {
+    background: #e2ded5;
+}
+
 ::-webkit-scrollbar-button {
-    background: var(--xp-btn-face);
+    background-color: var(--xp-btn-face);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
     border: 2px solid;
     border-color: var(--xp-btn-highlight) var(--xp-btn-shadow) var(--xp-btn-shadow) var(--xp-btn-highlight);
-    display: block;
-    height: 16px;
-    width: 16px;
+    /* 注意：不可在此設定 height/width/display！
+       對「無方向」的 ::-webkit-scrollbar-button 設定尺寸會讓
+       Blink 改用 double-both 佈局（每端渲染 2 個按鈕），
+       加上 :vertical:start/:end 箭頭後就會出現 ▲▲條▼▼。 */
+}
+
+/* 箭頭（XP 立體風格：深灰箭頭 + 右下白影） */
+::-webkit-scrollbar-button:vertical:start {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 8.5h5L6 3.5z' fill='white' transform='translate(1 1)'/%3E%3Cpath d='M3.5 8.5h5L6 3.5z' fill='%23404040'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:vertical:end {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 3.5h5L6 8.5z' fill='white' transform='translate(1 1)'/%3E%3Cpath d='M3.5 3.5h5L6 8.5z' fill='%23404040'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:horizontal:start {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M8.5 3.5v5L3.5 6z' fill='white' transform='translate(1 1)'/%3E%3Cpath d='M8.5 3.5v5L3.5 6z' fill='%23404040'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:horizontal:end {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 3.5v5L8.5 6z' fill='white' transform='translate(1 1)'/%3E%3Cpath d='M3.5 3.5v5L8.5 6z' fill='%23404040'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar-button:disabled {
+    background-color: #E6E3DC;
+    opacity: 0.7;
+}
+
+/* 直向 + 橫向捲軸同時出現時的角落（避免白色方塊） */
+::-webkit-scrollbar-corner {
+    background: var(--xp-bg);
+}
+
+/* Firefox 專用（Chromium 也支援 scrollbar-color，若設了會覆寫上方
+   ::-webkit-scrollbar 樣式，因此用 @supports 限定 Firefox 才套用） */
+@supports (-moz-appearance: none) {
+    * {
+        scrollbar-width: auto;
+        scrollbar-color: var(--xp-btn-face) var(--xp-bg);
+    }
 }
 
 /* ---- Responsive (small screens) ---- */
 @media (max-width: 800px) {
     #right-panel {
         width: 120px;
+    }
+    #chat-window {
+        height: 120px;
     }
     #toolbox {
         width: 56px;
@@ -1262,9 +1311,21 @@ html, body {
 #canvas-area {
     min-width: 0;
     padding: 0;
-    overflow: auto;
-    /* align-items / justify-content 沿用前面第 358 行規則設定（center / center） */
+    /* display:flex + align/justify center 沿用前段規則（負責置中） */
     background: transparent;
+    overflow: hidden;
+}
+
+/* 捲動容器：block 佈局，避免 flex/grid 捲動容器在 Chrome 渲染出頂部雙 ▲
+   （Chromium 對 flex/grid scroll container 的自訂捲軸按鈕佈局 bug）。
+   fit-content + max 限制：內容較小時縮小以讓 flex 置中，較大時捲動。 */
+.canvas-scroll {
+    display: block;
+    overflow: auto;
+    width: fit-content;
+    max-width: 100%;
+    height: fit-content;
+    max-height: 100%;
 }
 
 .canvas-stage {
@@ -1406,6 +1467,66 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* ---- Chat Window (below player list) ---- */
+#chat-window {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: 168px;
+}
+
+#chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 6px;
+    background: #fff;
+    border: 1px solid;
+    border-color: #7b776d #fff #fff #7b776d;
+    font-size: 11px;
+    line-height: 1.35;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.chat-msg {
+    margin-bottom: 2px;
+    word-break: break-word;
+}
+
+.chat-msg .chat-name {
+    font-weight: bold;
+}
+
+.chat-msg.me .chat-name {
+    color: #1a6fc4;
+}
+
+.chat-msg.other .chat-name {
+    color: #b45309;
+}
+
+.chat-system {
+    margin-bottom: 2px;
+    color: #808080;
+    font-style: italic;
+}
+
+#chat-input-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+#chat-input {
+    flex: 1;
+    min-width: 0;
+}
+
+#btn-chat-send {
+    min-width: 52px;
+    padding: 4px 8px;
 }
 
 #status-bar {

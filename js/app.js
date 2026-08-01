@@ -35,6 +35,8 @@
         UI._onVote = onVote;
         UI._onFakeGuess = onFakeGuess;
         UI._onPlayAgain = onPlayAgain;
+        UI._onChatSend = onChatSend;
+        UI.setChatEnabled(false); // 連線成功後才開放聊天輸入
 
         // 5. Wire up canvas callbacks
         drawingCanvas.onLocalStrokeComplete = onLocalStrokeComplete;
@@ -125,6 +127,47 @@
                 fromPeerId: peerManager.myPeerId,
             }, peerManager.myPeerId);
         }
+    }
+
+    // ================================================================
+    //  CHAT
+    // ================================================================
+
+    // 送出聊天訊息：client → host；host → 自己顯示 + 轉發給其他人
+    function onChatSend(text) {
+        const t = (text || "").trim().slice(0, 200);
+        if (!t) return;
+        if (!peerManager || !peerManager.peer) return; // 尚未連線
+
+        if (peerManager.isHost) {
+            _relayChat(peerManager.myPeerId, peerManager.myName, t);
+        } else {
+            // 本地 echo：自己的訊息立即顯示（host 中繼時會排除 sender）
+            UI.addChatMessage(peerManager.myName, t, { isMe: true });
+            peerManager.sendToHost({ type: "chat", text: t });
+        }
+    }
+
+    // Host 端中繼：寫入歷史 → 本機顯示 → 轉發給其他玩家
+    function _relayChat(fromPeerId, name, text) {
+        peerManager.chatHistory = peerManager.chatHistory || [];
+        peerManager.chatHistory.push({ peerId: fromPeerId, name, text });
+        if (peerManager.chatHistory.length > 50) {
+            peerManager.chatHistory = peerManager.chatHistory.slice(-50);
+        }
+        UI.addChatMessage(name, text, { isMe: fromPeerId === peerManager.myPeerId });
+        peerManager.broadcastExcept({
+            type: "chat",
+            name: name,
+            text: text,
+            peerId: fromPeerId,
+        }, fromPeerId);
+    }
+
+    // Host 端系統訊息：本機顯示 + 廣播給所有已連線玩家
+    function _relayChatSystem(text) {
+        UI.addChatSystem(text);
+        peerManager.broadcastToAll({ type: "chat-system", text: text });
     }
 
     // ================================================================
@@ -223,6 +266,8 @@
         UI.updatePlayerCount(peerManager.getPlayerCount());
         UI.updatePlayerList(_hostActivePlayers(), null);
         UI.updateRoomStatus("房間代碼: " + roomCode + " (Host)");
+        UI.addChatSystem("已加入聊天室");
+        UI.setChatEnabled(true);
     }
 
     // ---- Join (client) ----
@@ -277,9 +322,19 @@
             UI.updateLobbyPlayers(_hostLobbyPlayers());
             UI.updateLobbyCount(count);
         }
+
+        // 聊天室系統訊息：新玩家自己會收到 welcome/本機提示，不需重複廣播給他
+        const joinMsg = { type: "chat-system", text: name + " 加入了聊天室" };
+        UI.addChatSystem(joinMsg.text);
+        peerManager.broadcastExcept(joinMsg, peerId);
     }
 
-    function onPlayerLeave(peerId) {
+    function onPlayerLeave(peerId, name) {
+        // 先取得名稱（連線已關閉，無法再從 metadata 讀取）
+        const leaveName = name ||
+            (gameHost && gameHost.players.get(peerId) ? gameHost.players.get(peerId).name : null) ||
+            "某位玩家";
+
         if (gameHost) {
             gameHost.removePlayer(peerId);
         }
@@ -294,6 +349,9 @@
             UI.updateLobbyPlayers(_hostLobbyPlayers());
             UI.updateLobbyCount(count);
         }
+
+        // 聊天室系統訊息
+        _relayChatSystem(leaveName + " 離開了聊天室");
     }
 
     function onHostMessage(msg) {
@@ -309,6 +367,19 @@
                     hasDrawn: false,
                 })), null);
                 UI.updatePlayerCount(msg.players.length);
+                // 注意：先渲染歷史再顯示系統訊息（renderChatHistory 會清空列表）
+                UI.renderChatHistory(msg.chatHistory || []);
+                UI.addChatSystem("已加入聊天室");
+                break;
+
+            case "chat":
+                UI.addChatMessage(msg.name, msg.text, {
+                    isMe: msg.peerId === peerManager.myPeerId,
+                });
+                break;
+
+            case "chat-system":
+                UI.addChatSystem(msg.text);
                 break;
 
             case "player-list":
@@ -419,6 +490,14 @@
                     drawingCanvas.applyRemoteCanvasAction(msg.action);
                 }
                 break;
+
+            case "chat": {
+                // 聊天訊息：解析名稱後中繼給所有其他玩家
+                const conn = peerManager.connections.get(fromPeerId);
+                const name = (conn && conn.metadata && conn.metadata.name) || "玩家";
+                _relayChat(fromPeerId, name, (msg.text || "").slice(0, 200));
+                break;
+            }
         }
     }
 
@@ -430,6 +509,8 @@
         // 加入成功 → 顯示「等待房主開始」提示（不關閉、不可跳過）
         UI.setTurn("idle", { text: "已加入房間，等待房主開始遊戲", sub: `房間代碼: ${code}` });
         UI.setCanvasEnabled(false);
+        UI.setChatEnabled(true);
+        // 「已加入聊天室」系統訊息由 welcome case 在渲染歷史後顯示
     }
 
     function onDisconnectedFromHost() {
@@ -437,6 +518,8 @@
         UI.updatePlayerCount(0);
         UI.updatePlayerList([], null);
         UI.setCanvasEnabled(false);
+        UI.setChatEnabled(false);
+        UI.addChatSystem("連線已中斷");
         alert("與 Host 的連線已中斷。");
     }
 

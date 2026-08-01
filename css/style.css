@@ -1318,19 +1318,25 @@ html, body {
 
 /* 捲動容器：block 佈局，避免 flex/grid 捲動容器在 Chrome 渲染出頂部雙 ▲
    （Chromium 對 flex/grid scroll container 的自訂捲軸按鈕佈局 bug）。
-   fit-content + max 限制：內容較小時縮小以讓 flex 置中，較大時捲動。 */
+   高度固定為 100%（definite），讓內層的百分比 max-height 可以解析；
+   畫布會等比縮放至完全放入，捲軸只在極端情況（如調色盤橫向溢出）才會出現。 */
 .canvas-scroll {
     display: block;
     overflow: auto;
     width: fit-content;
     max-width: 100%;
-    height: fit-content;
-    max-height: 100%;
+    height: 100%;
 }
 
 .canvas-stage {
+    /* flex column：空間不足時讓 #canvas-frame 壓縮、畫布縮放；
+       safe center：空間足夠時垂直置中，不足時從頂部開始（避免裁剪） */
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
     width: fit-content;
     max-width: 100%;
+    height: 100%;
     margin: 0 auto;
     padding: 8px;
     box-sizing: border-box;
@@ -1344,6 +1350,10 @@ html, body {
     margin: 7px 0;
     width: fit-content;
     max-width: 100%;
+    /* 垂直空間不足時允許壓縮（flex-shrink:1 + min-height:0），
+       讓畫布跟著縮放而非出現捲軸 */
+    flex: 0 1 auto;
+    min-height: 0;
     box-sizing: border-box;
     border-width: 2px;
     box-shadow: 1px 1px 0 rgba(0,0,0,.25);
@@ -1351,8 +1361,11 @@ html, body {
 
 #drawing-canvas {
     display: block;
-    /* 響應式：寬度最大 100%，高度依 4:3 比例自動縮放，pixel buffer 由 canvas.js 以內部分辨率維持 */
+    /* 響應式：寬、高皆以 100% 為上限，高度依 4:3 比例自動縮放，
+       畫布會等比縮放以完全放入可用空間（不會撐出捲軸）；
+       pixel buffer 由 canvas.js 以內部分辨率維持 */
     max-width: 100%;
+    max-height: 100%;
     height: auto;
     aspect-ratio: 800 / 600;
     touch-action: none;
@@ -1365,6 +1378,8 @@ html, body {
     border: 2px solid;
     border-color: #7e7a71 #fff #fff #7e7a71;
     background: #d4d0c8;
+    /* 空間不足時不壓縮這列，只壓縮畫布 */
+    flex-shrink: 0;
 }
 
 .palette-label {
@@ -1567,6 +1582,8 @@ html, body {
     border-color: #fff #67a4d8 #67a4d8 #fff;
     box-shadow: 1px 1px 0 #2c5677;
     line-height: 1.35;
+    /* 空間不足時不壓縮橫幅，只壓縮畫布 */
+    flex-shrink: 0;
 }
 
 .turn-banner .turn-banner-icon {
